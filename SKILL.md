@@ -1,5 +1,5 @@
 ---
-name: github-code-sync
+name: miaoda-app-chat-sync
 description: Sync code from GitHub repository to Miaoda platform. Fetches code from GitHub, generates structured JSON instructions for accurate code updates via chat API. Works together with miaoda-app-builder skill for complete code sync workflow.
 metadata: { "openclaw": {"requires": { "bins": ["python3", "git"], "env":["GITHUB_TOKEN"]},"primaryEnv":"GITHUB_TOKEN" } }
 ---
