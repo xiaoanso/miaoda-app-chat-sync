@@ -482,14 +482,32 @@ class RepoJSONGenerator:
                     # relative to the NEW file state, but typically deletions are identified by what's missing.
                     # However, strictly following the provided reference logic:
             
-            # Merge consecutive changes of the same type
+            # Merge consecutive changes of the same type and read full file content
             files_list = []
             for file_path, file_info in files_dict.items():
+                # Merge changes
                 merged_changes = self._merge_consecutive_changes(file_info['changes'])
                 file_info['changes'] = merged_changes
+                
+                # Read full file content for non-deleted files
+                if file_info['status'] != 'deleted':
+                    full_file_path = os.path.join(temp_dir, file_path)
+                    try:
+                        if os.path.exists(full_file_path):
+                            with open(full_file_path, 'r', encoding='utf-8') as f:
+                                file_info['content'] = f.read()
+                        else:
+                            file_info['content'] = ''
+                    except Exception as e:
+                        print(f"   ⚠️  Error reading {file_path}: {str(e)}")
+                        file_info['content'] = ''
+                else:
+                    # For deleted files, content is empty
+                    file_info['content'] = ''
+                
                 files_list.append(file_info)
             
-            # Build output
+            # Build output with summary
             return {
                 'action': 'CREATE_OR_UPDATE_FILES',
                 'description': 'Please create or update all files in the project according to the following JSON data',
@@ -497,6 +515,20 @@ class RepoJSONGenerator:
                     'repository': repo_url,
                     'branch': branch,
                     'commit': commit_hash
+                },
+                'summary': {
+                    'files_changed': len(files_list),
+                    'total_additions': sum(f.get('additions', 0) for f in files_list),
+                    'total_deletions': sum(f.get('deletions', 0) for f in files_list),
+                    'files': [
+                        {
+                            'path': f['path'],
+                            'status': f['status'],
+                            'additions': f.get('additions', 0),
+                            'deletions': f.get('deletions', 0)
+                        }
+                        for f in files_list
+                    ]
                 },
                 'rules': [
                     '1. MUST update ALL files in the files array - no exceptions',
@@ -1006,48 +1038,64 @@ def cmd_sync(args):
 
 
 def cmd_info(args):
-    """[Req 2] Info command - Get detailed commit information"""
+    """[Req 2] Info command - Get detailed commit information (full changes mode by default)"""
     print(f"ℹ️  Getting repository/commit info...")
     print(f"📦 Repository: {args.repo}")
-    if args.commit:
-        print(f"📌 Commit: {args.commit}")
-    else:
-        print(f"📌 Branch: {args.branch} (HEAD)")
-    
-    if args.full:
-        print(f"📋 Mode: Full changes (including diffs)")
+    print(f"📌 Commit: {args.commit}")
+    print(f"📋 Mode: Full changes (including diffs)")
     
     try:
         gh = RepoJSONGenerator(args.token)
         
-        if args.full:
-            if not args.commit:
-                print(f"\n❌ Error: --full mode requires --commit parameter", file=sys.stderr)
-                sys.exit(1)
-            
-            print(f"\n📥 Fetching full changes for commit {args.commit[:8]}...")
-            info_data = gh.get_commit_full_changes(args.repo, commit=args.commit, branch=args.branch)
-        else:
-            info_data = gh.get_repo_info(args.repo, commit=args.commit, branch=args.branch)
+        print(f"\n📥 Fetching full changes for commit {args.commit[:8]}...")
+        info_data = gh.get_commit_full_changes(args.repo, commit=args.commit, branch=args.branch)
         
         generator = InstructionGenerator()
         
-        if args.full:
-            if args.json_only:
-                output = json.dumps(info_data, ensure_ascii=False, indent=2)
-            else:
-                output = generator.generate_commit_full_changes(info_data)
+        # Generate JSON output
+        if args.json_only:
+            output = json.dumps(info_data, ensure_ascii=False, indent=2)
         else:
-            if args.json_only:
-                output = json.dumps(info_data, ensure_ascii=False, indent=2)
-            else:
-                output = generator.generate_info_output(info_data)
+            output = generator.generate_commit_full_changes(info_data)
         
         if args.output:
+            # Always save JSON to file
+            json_output = json.dumps(info_data, ensure_ascii=False, indent=2)
             with open(args.output, 'w', encoding='utf-8') as f:
-                f.write(output)
-            print(f"\n   ✅ Info saved to: {args.output}")
+                f.write(json_output)
+            
+            # Display summary from JSON data in terminal
+            summary = info_data.get('summary', {})
+            files = info_data.get('files', [])
+            
+            if summary:
+                total_files = summary.get('files_changed', len(files))
+                total_additions = summary.get('total_additions', 0)
+                total_deletions = summary.get('total_deletions', 0)
+                files_list = summary.get('files', files)
+            else:
+                total_files = len(files)
+                total_additions = sum(f.get('additions', 0) for f in files)
+                total_deletions = sum(f.get('deletions', 0) for f in files)
+                files_list = files
+            
+            print(f"\n📊 Summary:")
+            print(f"  Files Changed: {total_files}")
+            print(f"  Total Additions: +{total_additions}")
+            print(f"  Total Deletions: -{total_deletions}")
+            
+            print(f"\n📁 Changed Files ({total_files}):")
+            for file_info in files_list:
+                status = file_info.get('status', 'modified')
+                status_icon = {'added': '🆕 Added', 'deleted': '🗑️ Deleted', 'modified': '📝 Modified'}.get(status, '❓')
+                additions = file_info.get('additions', 0)
+                deletions = file_info.get('deletions', 0)
+                stats_str = f"+{additions}/-{deletions}" if additions or deletions else ""
+                print(f"  {status_icon}: {file_info['path']} ({stats_str})")
+            
+            print(f"\n   ✅ Full changes saved to: {args.output}")
         else:
+            # No output file specified, print to terminal
             print(output)
         
     except Exception as e:
@@ -1087,15 +1135,13 @@ Parameter Description:
 Requirement 2: Get detailed commit information
 ================================================================
 python3 repo_json_generator.py info --repo URL --commit abc123
-python3 repo_json_generator.py info --repo URL --branch main
 python3 repo_json_generator.py info --repo URL --commit abc123 --json-only
-python3 repo_json_generator.py info --repo URL --branch main --output info.json
+python3 repo_json_generator.py info --repo URL --commit abc123 --output info.json
 
 Parameter Description:
   --repo         GitHub repository URL (required)
-  --branch       Branch name (default: main, used when --commit is not specified)
-  --commit       Specific commit hash (optional, overrides branch)
-  --full         Get full changes including file diffs (requires --commit)
+  --branch       Branch name (default: main)
+  --commit       Specific commit hash (required)
   --output       Save output to file instead of printing to terminal
   --json-only    Output only pure JSON without formatted instruction text
 """
@@ -1126,8 +1172,7 @@ Parameter Description:
                               help='[Req 2] Get detailed commit information')
     p.add_argument('--repo', required=True, help='GitHub repository URL')
     p.add_argument('--branch', default='main', help='Branch name (default: main)')
-    p.add_argument('--commit', help='Specific commit hash (optional)')
-    p.add_argument('--full', action='store_true', help='Get full changes including file diffs (requires --commit)')
+    p.add_argument('--commit', required=True, help='Specific commit hash (required)')
     p.add_argument('--output', help='Output to file instead of stdout')
     p.add_argument('--json-only', action='store_true', help='Output only JSON')
     p.set_defaults(func=cmd_info)
