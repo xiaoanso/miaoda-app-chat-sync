@@ -322,6 +322,200 @@ class RepoJSONGenerator:
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
     
+    def _merge_consecutive_changes(self, changes: List[Dict]) -> List[Dict]:
+        """
+        Merge consecutive changes of the same type.
+        
+        Args:
+            changes: List of change dictionaries
+            
+        Returns:
+            Merged list of changes
+        """
+        if not changes:
+            return []
+        
+        merged = []
+        current = changes[0].copy()
+        
+        for i in range(1, len(changes)):
+            next_change = changes[i]
+            
+            # Check if we can merge (same type and consecutive lines)
+            # Note: For additions, line numbers in new file are consecutive.
+            # For deletions, line numbers in old file are consecutive.
+            if (current['type'] == next_change['type'] and 
+                abs(current.get('line', 0) - next_change.get('line', 0)) <= 1):
+                # Merge content
+                current['content'] = current.get('content', '') + '\n' + next_change.get('content', '')
+                # Update line to the later one (or keep start, depending on preference. 
+                # Here we update to max to represent the end of the block or just keep tracking)
+                # Actually for a block, keeping the start line is usually more useful for insertion point.
+                # But following the reference logic:
+                current['line'] = max(current.get('line', 0), next_change.get('line', 0))
+            else:
+                merged.append(current)
+                current = next_change.copy()
+        
+        merged.append(current)
+        return merged
+
+    def get_commit_full_changes(self, repo_url: str, commit: str, branch: str = 'main') -> Dict:
+        """
+        Get full changes of a specific commit including file diffs.
+        
+        Returns:
+            {
+                "action": "CREATE_OR_UPDATE_FILES",
+                "description": "...",
+                "source": {...},
+                "rules": [...],
+                "files": [
+                    {
+                        "path": "...",
+                        "status": "added|modified|deleted",
+                        "additions": N,
+                        "deletions": N,
+                        "changes": [
+                            {
+                                "type": "addition|deletion|replacement",
+                                "line": N,
+                                "content": "..."
+                            }
+                        ]
+                    }
+                ]
+            }
+        """
+        temp_dir = tempfile.mkdtemp(prefix='github-info-')
+        try:
+            # Clone and checkout the specific commit
+            self.clone_repo(repo_url, temp_dir, branch='main', commit=commit)
+            env = self._get_git_env()
+            
+            # Get commit info
+            format_str = '%H||%h||%s||%b||%an||%ae||%aI||%cn||%ce||%cI||%P'
+            cmd = ['git', '-C', temp_dir, 'log', '-1', f'--format={format_str}', commit]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env)
+            
+            if result.returncode != 0:
+                raise Exception(f"Failed to get commit info: {result.stderr}")
+            
+            lines = result.stdout.strip().split('||')
+            if len(lines) < 11:
+                raise Exception("Invalid git log output format")
+            
+            (commit_hash, short_hash, subject, body, 
+             author_name, author_email, author_date,
+             committer_name, committer_email, committer_date, 
+             parents) = lines
+            
+            parent_list = parents.split() if parents else []
+            
+            # Get full diff
+            if parent_list:
+                parent_commit = parent_list[0]
+            else:
+                # Initial commit has no parent, cannot diff
+                raise Exception("Cannot get changes for initial commit (no parent commit found)")
+            
+            # Get unified diff with 0 context lines for precise change location
+            cmd = ['git', '-C', temp_dir, 'diff', '--unified=0', parent_commit, commit]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=env)
+            
+            full_diff = result.stdout if result.returncode == 0 else ''
+            
+            # Parse diff into file-based structure
+            files_dict = {}
+            current_file = None
+            new_start = 0
+            
+            for line in full_diff.split('\n'):
+                if line.startswith('diff --git'):
+                    # Parse file path
+                    parts = line.split(' b/')
+                    if len(parts) == 2:
+                        file_path = parts[1]
+                        current_file = {
+                            'path': file_path,
+                            'status': 'modified',
+                            'additions': 0,
+                            'deletions': 0,
+                            'changes': []
+                        }
+                        files_dict[file_path] = current_file
+                    
+                elif line.startswith('new file mode'):
+                    if current_file:
+                        current_file['status'] = 'added'
+                        
+                elif line.startswith('deleted file mode'):
+                    if current_file:
+                        current_file['status'] = 'deleted'
+                        
+                elif line.startswith('@@'):
+                    # Parse hunk header: @@ -old_start,old_count +new_start,new_count @@
+                    match = re.search(r'\+(\d+)(?:,(\d+))?', line)
+                    if match and current_file:
+                        new_start = int(match.group(1))
+                        # new_count = int(match.group(2)) if match.group(2) else 1
+                        
+                elif line.startswith('+') and not line.startswith('+++') and current_file:
+                    current_file['additions'] += 1
+                    current_file['changes'].append({
+                        'type': 'addition',
+                        'line': new_start,
+                        'content': line[1:]
+                    })
+                    new_start += 1
+                    
+                elif line.startswith('-') and not line.startswith('---') and current_file:
+                    current_file['deletions'] += 1
+                    current_file['changes'].append({
+                        'type': 'deletion',
+                        'line': new_start if 'new_start' in dir() else 0,
+                        'content': line[1:]
+                    })
+                    # Deletions don't increment new_start in the new file context, 
+                    # but logically we might want to track old line numbers if needed.
+                    # The reference implementation uses new_start which might be slightly off for deletions 
+                    # relative to the NEW file state, but typically deletions are identified by what's missing.
+                    # However, strictly following the provided reference logic:
+            
+            # Merge consecutive changes of the same type
+            files_list = []
+            for file_path, file_info in files_dict.items():
+                merged_changes = self._merge_consecutive_changes(file_info['changes'])
+                file_info['changes'] = merged_changes
+                files_list.append(file_info)
+            
+            # Build output
+            return {
+                'action': 'CREATE_OR_UPDATE_FILES',
+                'description': 'Please create or update all files in the project according to the following JSON data',
+                'source': {
+                    'repository': repo_url,
+                    'branch': branch,
+                    'commit': commit_hash
+                },
+                'rules': [
+                    '1. MUST update ALL files in the files array - no exceptions',
+                    '2. MUST copy content EXACTLY as-is - no modifications, no reformatting, no \'improvements\'',
+                    '3. MUST preserve ALL whitespace, newlines, indentation, and comments exactly',
+                    '4. MUST use EXACT file paths from path field - no path transformation',
+                    '5. If file exists: overwrite completely (NOT merge)',
+                    '6. If file does not exist: create it',
+                    '7. After updating: output complete list of all updated files (format: 1. /path/to/file)',
+                    '8. DO NOT ask for confirmation - just execute',
+                    '9. DO NOT use Git commands - file operations only',
+                    '10. DO NOT skip any file for any reason'
+                ],
+                'files': files_list
+            }
+                
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+    
 
     def get_commit_changed_files(self, repo_dir: str, commit: str) -> List[Tuple[str, str]]:
         """
@@ -619,6 +813,55 @@ class InstructionGenerator:
         return json.dumps(instruction_data, ensure_ascii=False, indent=2)
 
     @staticmethod
+    def generate_commit_full_changes(info_data: Dict) -> str:
+        """Generate formatted output for commit full changes"""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        source = info_data.get('source', {})
+        files = info_data.get('files', [])
+        
+        # Calculate statistics
+        total_files = len(files)
+        total_additions = sum(f.get('additions', 0) for f in files)
+        total_deletions = sum(f.get('deletions', 0) for f in files)
+        
+        # Build files summary
+        files_summary = []
+        for file_info in files:
+            status = file_info.get('status', 'modified')
+            status_icon = {'added': '🆕 Added', 'deleted': '🗑️ Deleted', 'modified': '📝 Modified'}.get(status, '❓')
+            additions = file_info.get('additions', 0)
+            deletions = file_info.get('deletions', 0)
+            stats_str = f"+{additions}/-{deletions}" if additions or deletions else ""
+            files_summary.append(f"  {status_icon}: {file_info['path']} ({stats_str})")
+        
+        return f"""📋 Commit Full Changes
+{'=' * 60}
+
+🔗 Source:
+  Repository: {source.get('repository', 'N/A')}
+  Branch: {source.get('branch', 'N/A')}
+  Commit: {source.get('commit', 'N/A')[:8] if source.get('commit') else 'N/A'}
+
+📊 Statistics:
+  Files Changed: {total_files}
+  Total Additions: +{total_additions}
+  Total Deletions: -{total_deletions}
+
+📁 Changed Files ({total_files}):
+{chr(10).join(files_summary)}
+
+{'=' * 60}
+
+📝 Copy the following JSON for complete changes:
+
+```json
+{json.dumps(info_data, ensure_ascii=False, indent=2)}
+```
+
+{'=' * 60}
+"""
+
+    @staticmethod
     def generate_info_output(info_data: Dict) -> str:
         """Generate formatted commit info output"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -763,7 +1006,7 @@ def cmd_sync(args):
 
 
 def cmd_info(args):
-    """[Req 3] Info command - Get detailed commit information"""
+    """[Req 2] Info command - Get detailed commit information"""
     print(f"ℹ️  Getting repository/commit info...")
     print(f"📦 Repository: {args.repo}")
     if args.commit:
@@ -771,16 +1014,34 @@ def cmd_info(args):
     else:
         print(f"📌 Branch: {args.branch} (HEAD)")
     
+    if args.full:
+        print(f"📋 Mode: Full changes (including diffs)")
+    
     try:
         gh = RepoJSONGenerator(args.token)
-        info_data = gh.get_repo_info(args.repo, commit=args.commit, branch=args.branch)
+        
+        if args.full:
+            if not args.commit:
+                print(f"\n❌ Error: --full mode requires --commit parameter", file=sys.stderr)
+                sys.exit(1)
+            
+            print(f"\n📥 Fetching full changes for commit {args.commit[:8]}...")
+            info_data = gh.get_commit_full_changes(args.repo, commit=args.commit, branch=args.branch)
+        else:
+            info_data = gh.get_repo_info(args.repo, commit=args.commit, branch=args.branch)
         
         generator = InstructionGenerator()
         
-        if args.json_only:
-            output = json.dumps(info_data, ensure_ascii=False, indent=2)
+        if args.full:
+            if args.json_only:
+                output = json.dumps(info_data, ensure_ascii=False, indent=2)
+            else:
+                output = generator.generate_commit_full_changes(info_data)
         else:
-            output = generator.generate_info_output(info_data)
+            if args.json_only:
+                output = json.dumps(info_data, ensure_ascii=False, indent=2)
+            else:
+                output = generator.generate_info_output(info_data)
         
         if args.output:
             with open(args.output, 'w', encoding='utf-8') as f:
@@ -834,6 +1095,7 @@ Parameter Description:
   --repo         GitHub repository URL (required)
   --branch       Branch name (default: main, used when --commit is not specified)
   --commit       Specific commit hash (optional, overrides branch)
+  --full         Get full changes including file diffs (requires --commit)
   --output       Save output to file instead of printing to terminal
   --json-only    Output only pure JSON without formatted instruction text
 """
@@ -865,6 +1127,7 @@ Parameter Description:
     p.add_argument('--repo', required=True, help='GitHub repository URL')
     p.add_argument('--branch', default='main', help='Branch name (default: main)')
     p.add_argument('--commit', help='Specific commit hash (optional)')
+    p.add_argument('--full', action='store_true', help='Get full changes including file diffs (requires --commit)')
     p.add_argument('--output', help='Output to file instead of stdout')
     p.add_argument('--json-only', action='store_true', help='Output only JSON')
     p.set_defaults(func=cmd_info)

@@ -169,10 +169,43 @@ python3 scripts/repo_json_generator.py sync \
 ### Example 7: View Repository Info
 
 ```bash
+# Get latest commit info from default branch
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/username/my-project
+
+# Get specific commit information
 python3 scripts/repo_json_generator.py info \
   --repo https://github.com/username/my-project \
-  --branch main
+  --commit abc123def456
+
+# Get info from specific branch
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/username/my-project \
+  --branch develop
+
+# Get full changes of a commit (including file diffs)
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/username/my-project \
+  --commit dbc95d3f5c708709e83b2ae3bd1a1354fb4d43b1 \
+  --full \
+  --output commit_changes.json
+
+# Get full changes in JSON format
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/username/my-project \
+  --commit abc123def456 \
+  --full \
+  --json-only \
+  --output changes.json
 ```
+
+**Parameters:**
+- `--repo`: GitHub repository URL (required)
+- `--branch`: Branch name (default: main, used when --commit is not specified)
+- `--commit`: Specific commit hash (optional, overrides branch)
+- `--full`: Get full changes including file diffs (requires --commit)
+- `--output`: Save output to file instead of printing to terminal
+- `--json-only`: Output only pure JSON without formatted instruction text
 
 ---
 
@@ -238,12 +271,35 @@ python3 scripts/repo_json_generator.py sync [options]
 
 ### info Command
 
-Get repository information.
+Get detailed commit/repository information.
 
 ```bash
-python3 scripts/repo_json_generator.py info \
-  --repo REPO_URL \
-  --branch BRANCH
+python3 scripts/repo_json_generator.py info [options]
+```
+
+**Required:**
+- `--repo REPO_URL`: Git repository URL
+
+**Optional:**
+- `--branch BRANCH`: Branch name (default: main, used when --commit is not specified)
+- `--commit COMMIT`: Specific commit hash (optional, overrides branch)
+- `--full`: Get full changes including file diffs (requires --commit)
+- `--output FILE`: Save output to file
+- `--json-only`: Output only JSON without formatted text
+
+**Examples:**
+```bash
+# Get latest commit from default branch
+python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo
+
+# Get specific commit information
+python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123
+
+# Get full changes of a commit (including diffs)
+python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123 --full --output changes.json
+
+# Get full changes in JSON format
+python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123 --full --json-only --output changes.json
 ```
 
 ---

@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-04-29
+
+### Changed
+- **BREAKING**: Refactored `info --full` command output format to file-based structure
+  - Changed from raw unified diff to structured file-level changes
+  - Each file now includes: path, status (added/modified/deleted), additions, deletions, and changes array
+  - Changes are organized by type (addition/deletion) with line numbers
+  - Consecutive changes of the same type are automatically merged
+  - Output format matches `CREATE_OR_UPDATE_FILES` action template
+  
+**New JSON Structure:**
+```json
+{
+  "action": "CREATE_OR_UPDATE_FILES",
+  "description": "...",
+  "source": { "repository": "...", "branch": "...", "commit": "..." },
+  "rules": [...],
+  "files": [
+    {
+      "path": "src/file.ts",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 1,
+      "changes": [
+        { "type": "deletion", "line": 10, "content": "..." },
+        { "type": "addition", "line": 10, "content": "..." }
+      ]
+    }
+  ]
+}
+```
+
+## [2.2.0] - 2026-04-29
+
+### Added
+- **New**: Added `--full` parameter to `info` command to get complete commit changes including file diffs
+  - New method `get_commit_full_changes()` in `RepoJSONGenerator` class
+  - New method `generate_commit_full_changes()` in `InstructionGenerator` class
+  - Outputs structured JSON with commit info, changed files list, and unified diffs
+  - Supports saving to file with `--output` parameter
+  - Supports JSON-only output with `--json-only` parameter
+
+**Usage Example:**
+```bash
+# Get full changes of a specific commit
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/username/repo \
+  --commit dbc95d3f5c708709e83b2ae3bd1a1354fb4d43b1 \
+  --full \
+  --output commit_changes.json
+```
+
 ## [2.1.0] - 2026-04-29
 
 ### Removed
