@@ -93,10 +93,10 @@ Each batch sent to AI agent sequentially
 
 **Scenario 3: Incremental Update**
 ```
-User says: "Only changed files" or "Generate diff JSON"
+User says: "只更新改动的文件" or "Sync only changed files"
     ↓
-repo-json-generator uses diff command
-    ├─ Compare commits to find changed files
+repo-json-generator uses sync command with specific commit
+    ├─ Get changed files from commit
     └─ Generate JSON for only modified files
     ↓
 Send to AI agent
@@ -187,9 +187,9 @@ Each batch sent to miaoda-app-builder sequentially
 ```
 User says: "只更新改动的文件" or "Sync only changed files"
     ↓
-repo-json-generator uses diff command
-    ├─ Compare commits to find changed files
-    └─ Generate JSON for only modified files
+repo-json-generator uses sync command with commit filter
+    ├─ Find specific commit with changed files
+    └─ Generate JSON for only those files
     ↓
 Send to miaoda-app-builder
 ```
@@ -296,7 +296,6 @@ When this tool runs, it temporarily clones repositories to process code. All dir
 |---------|----------|-------|
 | `sync` | `/tmp/github-sync-<repo-name>/` | Persists during execution |
 | `info` | `/tmp/github-info-<random>/` | Auto-deleted immediately |
-| `diff` | `/tmp/github-diff-<random>/` | Auto-deleted immediately |
 
 ## Quick Notes
 
@@ -340,7 +339,7 @@ python3 scripts/repo_json_generator.py --help
 ```
 
 Review the help output to understand:
-- Available subcommands (`sync`, `diff`, `info`)
+- Available subcommands (`sync`, `info`)
 - Required parameters (`--repo`, `--commit`, etc.)
 - Optional parameters (`--filter`, `--exclude`, `--max-files`, `--output`)
 - Usage examples for different scenarios

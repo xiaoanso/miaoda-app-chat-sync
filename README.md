@@ -176,17 +176,6 @@ python3 scripts/repo_json_generator.py info \
 
 ---
 
-### Example 8: Compare Commits
-
-```bash
-python3 scripts/repo_json_generator.py diff \
-  --repo https://github.com/username/my-project \
-  --from abc123 \
-  --to def456
-```
-
----
-
 ## 📊 Complete Workflow
 
 ```
@@ -244,19 +233,6 @@ python3 scripts/repo_json_generator.py sync [options]
 - `--filter PATTERN`: File filter (e.g., "*.py,*.js")
 - `--output FILE`: Save to file
 - `--no-instructions`: Output only JSON
-
----
-
-### diff Command
-
-Show changed files between commits.
-
-```bash
-python3 scripts/repo_json_generator.py diff \
-  --repo REPO_URL \
-  --from COMMIT1 \
-  --to COMMIT2
-```
 
 ---
 

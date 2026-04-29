@@ -9,13 +9,11 @@ for accurate code updates via AI agents and automation tools.
 
 - **sync**: `/tmp/github-sync-<repo-name>/` (auto-cleaned after execution)
 - **info**: `/tmp/github-info-<random>/` (auto-deleted)
-- **diff**: `/tmp/github-diff-<random>/` (auto-deleted)
 
 All directories are automatically removed after script completion.
 
 Usage:
     python3 repo_json_generator.py sync --repo URL --commit COMMIT [options]
-    python3 repo_json_generator.py diff --repo URL --from-commit COMMIT --to-commit COMMIT [options]
     python3 repo_json_generator.py info --repo URL [--commit COMMIT] [options]
     
 Note:
@@ -102,6 +100,57 @@ class RepoJSONGenerator:
         elif repo_url.startswith('http://'):
             return repo_url.replace('http://', f'https://{self.token}@')
         return repo_url
+    
+    def _detect_default_branch(self, repo_url: str) -> str:
+        """
+        Detect the default branch of a remote repository.
+        
+        Returns:
+            Default branch name (e.g., 'main', 'master', 'develop')
+        """
+        try:
+            auth_url = self._make_authenticated_url(repo_url)
+            env = self._get_git_env()
+            
+            # Create a temporary directory for detection
+            temp_dir = tempfile.mkdtemp(prefix='branch-detect-')
+            
+            try:
+                # Initialize bare repo to get remote info
+                cmd = ['git', 'ls-remote', '--symref', auth_url, 'HEAD']
+                result = subprocess.run(cmd, capture_output=True, text=True, 
+                                       timeout=30, env=env)
+                
+                if result.returncode == 0:
+                    # Parse output like: ref: refs/heads/main	HEAD
+                    for line in result.stdout.split('\n'):
+                        if line.startswith('ref:'):
+                            parts = line.split('\t')
+                            if len(parts) >= 1:
+                                ref = parts[0]
+                                if 'refs/heads/' in ref:
+                                    branch = ref.split('refs/heads/')[1]
+                                    print(f"   🎯 Detected default branch: {branch}")
+                                    return branch
+                
+                # Fallback to common branch names
+                for branch in ['main', 'master', 'develop']:
+                    cmd = ['git', 'ls-remote', '--heads', auth_url, branch]
+                    result = subprocess.run(cmd, capture_output=True, text=True, 
+                                           timeout=30, env=env)
+                    if result.returncode == 0 and result.stdout.strip():
+                        print(f"   🎯 Using fallback branch: {branch}")
+                        return branch
+                
+                print(f"   ⚠️  Could not detect default branch, using 'main'")
+                return 'main'
+                
+            finally:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                
+        except Exception as e:
+            print(f"   ⚠️  Branch detection failed: {str(e)}, using 'main'")
+            return 'main'
     
     def clone_repo(self, repo_url: str, target_dir: str, 
                    branch: str = 'main', commit: str = None) -> str:
@@ -208,13 +257,17 @@ class RepoJSONGenerator:
         """
         temp_dir = tempfile.mkdtemp(prefix='github-info-')
         try:
+            # Auto-detect branch if not specified or using default 'main'
             if commit:
-                self.clone_repo(repo_url, temp_dir, branch, commit)
+                # When commit is specified, we can use any branch for initial clone
+                # since we'll checkout the specific commit anyway
+                self.clone_repo(repo_url, temp_dir, branch='main', commit=commit)
                 target_ref = commit
             else:
-                self.clone_repo(repo_url, temp_dir, branch)
-                target_ref = 'HEAD'
-            
+                # Auto-detect default branch
+                actual_branch = self._detect_default_branch(repo_url)
+                self.clone_repo(repo_url, temp_dir, branch=actual_branch)
+
             env = self._get_git_env()
             
             # Get detailed commit info
@@ -269,267 +322,7 @@ class RepoJSONGenerator:
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
     
-    def get_commit_diff(self, repo_url: str, from_commit: str, 
-                       to_commit: str = 'HEAD', file_filter: str = None, 
-                       exclude_filter: str = None, max_files: int = 50) -> Dict:
-        """
-        Get detailed diff between two commits with line numbers and code changes.
-        
-        Args:
-            repo_url: GitHub repository URL
-            from_commit: Base commit hash
-            to_commit: Target commit (default: HEAD)
-            file_filter: File pattern filter to include
-            exclude_filter: File pattern filter to exclude
-            max_files: Maximum number of files to include
-            
-        Returns:
-            {
-                "action": "SHOW_DIFF",
-                "repository": "...",
-                "base_commit": "...",
-                "target_commit": "...",
-                "summary": {"files_changed": N, "total_additions": N, "total_deletions": N},
-                "files": [
-                    {
-                        "path": "...",
-                        "status": "added|modified|deleted",
-                        "additions": N,
-                        "deletions": N,
-                        "hunks": [
-                            {
-                                "old_start": N,
-                                "old_lines": N,
-                                "new_start": N,
-                                "new_lines": N,
-                                "changes": [
-                                    {"type": "context|deletion|addition", "old_line": N, "new_line": N, "content": "..."}
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            }
-        """
-        temp_dir = tempfile.mkdtemp(prefix='github-diff-')
-        try:
-            # Clone the repo
-            self.clone_repo(repo_url, temp_dir)
-            env = self._get_git_env()
-            
-            print(f"   📥 Fetching commits {from_commit[:8]}..{to_commit[:8]}...")
-            
-            # Get unified diff
-            cmd = ['git', '-C', temp_dir, 'diff', '--unified=3', from_commit, to_commit]
-            result = subprocess.run(cmd, capture_output=True, text=True, 
-                                   timeout=120, env=env)
-            
-            raw_diff = result.stdout if result.returncode == 0 else ''
-            
-            # Parse the diff into structured format
-            diff_data = self._parse_diff(raw_diff)
-            
-            # Apply file filtering if filters are specified
-            if file_filter or exclude_filter:
-                processor = FileProcessor(max_files=max_files, file_filter=file_filter, exclude_filter=exclude_filter)
-                diff_data = self._filter_diff_files(diff_data, processor)
-            
-            # Get summary statistics
-            cmd = ['git', '-C', temp_dir, 'diff', '--stat', '--shortstat', from_commit, to_commit]
-            result = subprocess.run(cmd, capture_output=True, text=True, 
-                                   timeout=30, env=env)
-            
-            stats = self._parse_diff_stats(result.stdout)
-            
-            return {
-                'action': 'SHOW_DIFF',
-                'repository': repo_url,
-                'base_commit': from_commit,
-                'base_commit_short': from_commit[:8] if from_commit else None,
-                'target_commit': to_commit,
-                'target_commit_short': to_commit[:8] if to_commit else None,
-                'summary': stats,
-                'files': diff_data
-            }
-            
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-    
-    def _filter_diff_files(self, diff_data: List[Dict], processor: FileProcessor) -> List[Dict]:
-        """
-        Filter diff files based on include/exclude patterns
-        
-        Args:
-            diff_data: List of file diff data
-            processor: FileProcessor instance with filter configuration
-            
-        Returns:
-            Filtered list of file diff data
-        """
-        filtered_files = []
-        
-        for file_diff in diff_data:
-            filepath = file_diff.get('path', '')
-            
-            # Check if file should be included
-            if processor._should_include_file(filepath):
-                filtered_files.append(file_diff)
-            
-            # Check if we've reached the max files limit
-            if len(filtered_files) >= processor.max_files:
-                break
-        
-        return filtered_files
-    
-    def _parse_diff_stats(self, stat_output: str) -> Dict:
-        """Parse git diff --stat --shortstat output"""
-        stats = {
-            'files_changed': 0,
-            'total_additions': 0,
-            'total_deletions': 0
-        }
-        
-        for line in stat_output.strip().split('\n'):
-            # Match "N files changed, X insertions(+), Y deletions(-)"
-            match = re.search(r'(\d+) files changed', line)
-            if match:
-                stats['files_changed'] = int(match.group(1))
-            
-            match = re.search(r'(\d+) insertions?\(\+\)', line)
-            if match:
-                stats['total_additions'] = int(match.group(1))
-            
-            match = re.search(r'(\d+) deletions?\(\-\)', line)
-            if match:
-                stats['total_deletions'] = int(match.group(1))
-        
-        return stats
-    
-    def _parse_diff(self, raw_diff: str) -> List[Dict]:
-        """
-        Parse unified diff format into structured data.
-        
-        Format:
-        diff --git a/src/main.py b/src/main.py
-        index 1234567..89abcdef 100644
-        --- a/src/main.py
-        +++ b/src/main.py
-        @@ -10,7 +10,9 @@ function name
-        -old line
-        +new line
-         context line
-        """
-        files = []
-        current_file = None
-        current_hunk = None
-        old_line = None
-        new_line = None
-        
-        for line in raw_diff.split('\n'):
-            if line.startswith('diff --git'):
-                # Save previous file
-                if current_file:
-                    if current_hunk:
-                        current_file['hunks'].append(current_hunk)
-                    files.append(current_file)
-                
-                # Parse new file path
-                # Format: diff --git a/path b/path
-                parts = line.split(' b/')
-                if len(parts) == 2:
-                    current_file = {
-                        'path': parts[1],
-                        'status': 'modified',
-                        'additions': 0,
-                        'deletions': 0,
-                        'hunks': []
-                    }
-                    current_hunk = None
-                    
-            elif line.startswith('new file mode'):
-                if current_file:
-                    current_file['status'] = 'added'
-                    
-            elif line.startswith('deleted file mode'):
-                if current_file:
-                    current_file['status'] = 'deleted'
-                    
-            elif line.startswith('--- '):
-                # File deletion indicator
-                if current_file and current_file['status'] != 'deleted':
-                    # Will be confirmed by status line or final determination
-                    pass
-                    
-            elif line.startswith('+++ '):
-                pass
-                
-            elif line.startswith('@@'):
-                # New hunk starts
-                # Parse @@ -old_start,old_lines +new_start,new_lines @@
-                match = re.search(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', line)
-                if match:
-                    if current_hunk and current_file:
-                        current_file['hunks'].append(current_hunk)
-                    
-                    old_start = int(match.group(1))
-                    old_lines = int(match.group(2)) if match.group(2) else 1
-                    new_start = int(match.group(3))
-                    new_lines = int(match.group(4)) if match.group(4) else 1
-                    
-                    current_hunk = {
-                        'old_start': old_start,
-                        'old_lines': old_lines,
-                        'new_start': new_start,
-                        'new_lines': new_lines,
-                        'changes': []
-                    }
-                    old_line = old_start
-                    new_line = new_start
-                    
-            elif current_hunk and current_file:
-                if line.startswith('+') and not line.startswith('+++'):
-                    current_hunk['changes'].append({
-                        'type': 'addition',
-                        'old_line': None,
-                        'new_line': new_line,
-                        'content': line[1:]
-                    })
-                    current_file['additions'] += 1
-                    new_line += 1
-                    
-                elif line.startswith('-') and not line.startswith('---'):
-                    current_hunk['changes'].append({
-                        'type': 'deletion',
-                        'old_line': old_line,
-                        'new_line': None,
-                        'content': line[1:]
-                    })
-                    current_file['deletions'] += 1
-                    old_line += 1
-                    
-                elif line.startswith(' ') or line == '':
-                    current_hunk['changes'].append({
-                        'type': 'context',
-                        'old_line': old_line,
-                        'new_line': new_line,
-                        'content': line[1:] if line else ''
-                    })
-                    old_line += 1
-                    new_line += 1
-                    
-                elif line.startswith('\\'):
-                    # Git diff tell us something (e.g., \ No newline at end of file)
-                    if current_hunk['changes']:
-                        current_hunk['changes'][-1]['trailing_newline_warning'] = line
-        
-        # Don't forget the last file/hunk
-        if current_hunk and current_file:
-            current_file['hunks'].append(current_hunk)
-        if current_file:
-            files.append(current_file)
-        
-        return files
-    
+
     def get_commit_changed_files(self, repo_dir: str, commit: str) -> List[Tuple[str, str]]:
         """
         Get list of changed files for a specific commit.
@@ -826,36 +619,6 @@ class InstructionGenerator:
         return json.dumps(instruction_data, ensure_ascii=False, indent=2)
 
     @staticmethod
-    def generate_diff_output(diff_data: Dict) -> str:
-        """Generate formatted diff output"""
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        summary = diff_data['summary']
-        
-        return f"""🔄 Repo Diff Analysis - Comparison Result
-{'=' * 60}
-
-📋 Summary:
-  Repository: {diff_data['repository']}
-  Base Commit: {diff_data['base_commit_short']}
-  Target Commit: {diff_data['target_commit_short']}
-  Files Changed: {summary['files_changed']}
-  Total Additions: +{summary['total_additions']}
-  Total Deletions: -{summary['total_deletions']}
-  Generated: {timestamp}
-
-{'=' * 60}
-
-📝 Copy the following JSON for AI analysis:
-
-```json
-{json.dumps(diff_data, ensure_ascii=False, indent=2)}
-```
-
-{'=' * 60}
-"""
-
-    @staticmethod
     def generate_info_output(info_data: Dict) -> str:
         """Generate formatted commit info output"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -999,55 +762,6 @@ def cmd_sync(args):
             print(f"   ✅ Cleanup complete")
 
 
-def cmd_diff(args):
-    """[Req 2] Diff command - Compare two commits with detailed diff"""
-    print(f"🔍 Getting commit diff...")
-    print(f"📦 Repository: {args.repo}")
-    print(f"📌 From Commit: {args.from_commit}")
-    print(f"📌 To Commit: {args.to_commit}")
-    
-    if args.filter:
-        print(f"📋 Include Filter: {args.filter}")
-    if args.exclude:
-        print(f"🚫 Exclude Filter: {args.exclude}")
-    if args.max_files:
-        print(f"📊 Max Files: {args.max_files}")
-    
-    try:
-        gh = RepoJSONGenerator(args.token)
-        diff_data = gh.get_commit_diff(
-            args.repo, 
-            args.from_commit, 
-            args.to_commit,
-            file_filter=args.filter,
-            exclude_filter=args.exclude,
-            max_files=args.max_files
-        )
-        
-        generator = InstructionGenerator()
-        
-        if args.json_only:
-            output = json.dumps(diff_data, ensure_ascii=False, indent=2)
-        else:
-            output = generator.generate_diff_output(diff_data)
-        
-        if args.output:
-            with open(args.output, 'w', encoding='utf-8') as f:
-                f.write(output)
-            print(f"\n   ✅ Diff saved to: {args.output}")
-        else:
-            print(output)
-        
-        print(f"\n📊 Summary:")
-        print(f"   Files changed: {len(diff_data['files'])}")
-        print(f"   Additions: +{diff_data['summary']['total_additions']}")
-        print(f"   Deletions: -{diff_data['summary']['total_deletions']}")
-        
-    except Exception as e:
-        print(f"\n❌ Error: {str(e)}", file=sys.stderr)
-        sys.exit(1)
-
-
 def cmd_info(args):
     """[Req 3] Info command - Get detailed commit information"""
     print(f"ℹ️  Getting repository/commit info...")
@@ -1109,27 +823,19 @@ Parameter Description:
   --no-instructions  Output only pure JSON without formatted instruction text
 
 ================================================================
-Requirement 2: Compare differences between two commits (including line numbers and code)
-================================================================
-python3 repo_json_generator.py diff --repo URL --from-commit abc123 --to-commit def456
-python3 repo_json_generator.py diff --repo URL --from-commit abc123 --to-commit def456 --filter "*.py,*.js"
-python3 repo_json_generator.py diff --repo URL --from-commit abc123 --to-commit def456 --exclude "*.md,*.txt"
-python3 repo_json_generator.py diff --repo URL --from-commit abc123 --to-commit def456 --max-files 30
-python3 repo_json_generator.py diff --repo URL --from-commit abc123 --to-commit def456 --json-only
-
-Parameter Description:
-  --max-files    Limit the maximum number of files in diff output (default: 50). Used for batch processing large diffs
-  --filter       Specify file patterns to include (whitelist), supports: *.py,*.md or src/*.py etc.
-  --exclude      Specify file patterns to exclude (blacklist), supports: *.md,*.txt etc.
-  --output       Save output to file instead of printing to terminal
-  --json-only    Output only pure JSON without formatted instruction text
-
-================================================================
-Requirement 3: Get detailed commit information
+Requirement 2: Get detailed commit information
 ================================================================
 python3 repo_json_generator.py info --repo URL --commit abc123
 python3 repo_json_generator.py info --repo URL --branch main
 python3 repo_json_generator.py info --repo URL --commit abc123 --json-only
+python3 repo_json_generator.py info --repo URL --branch main --output info.json
+
+Parameter Description:
+  --repo         GitHub repository URL (required)
+  --branch       Branch name (default: main, used when --commit is not specified)
+  --commit       Specific commit hash (optional, overrides branch)
+  --output       Save output to file instead of printing to terminal
+  --json-only    Output only pure JSON without formatted instruction text
 """
     )
     
@@ -1153,22 +859,9 @@ python3 repo_json_generator.py info --repo URL --commit abc123 --json-only
     p.add_argument('--no-instructions', action='store_true', help='Output only JSON')
     p.set_defaults(func=cmd_sync)
     
-    # diff command
-    p = subparsers.add_parser('diff', 
-                              help='[Req 2] Get detailed differences between two commits (with line numbers and code)')
-    p.add_argument('--repo', required=True, help='GitHub repository URL')
-    p.add_argument('--from-commit', required=True, help='Base commit hash')
-    p.add_argument('--to-commit', default='HEAD', help='Target commit (default: HEAD)')
-    p.add_argument('--max-files', type=int, default=50, help='Max files to include in diff (default: 50)')
-    p.add_argument('--filter', help='File pattern filter to include (e.g., "*.py,*.js")')
-    p.add_argument('--exclude', help='File pattern filter to exclude (e.g., "*.md,*.txt")')
-    p.add_argument('--output', help='Output to file instead of stdout')
-    p.add_argument('--json-only', action='store_true', help='Output only JSON')
-    p.set_defaults(func=cmd_diff)
-    
     # info command
     p = subparsers.add_parser('info', 
-                              help='[Req 3] Get detailed commit information')
+                              help='[Req 2] Get detailed commit information')
     p.add_argument('--repo', required=True, help='GitHub repository URL')
     p.add_argument('--branch', default='main', help='Branch name (default: main)')
     p.add_argument('--commit', help='Specific commit hash (optional)')

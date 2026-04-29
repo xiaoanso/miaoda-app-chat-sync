@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-04-29
+
+### Removed
+- **BREAKING**: Removed `diff` command and all related functionality
+  - Removed `cmd_diff` function from codebase
+  - Removed diff-related methods from `RepoJSONGenerator` class (`get_commit_diff`, `_parse_diff`, `_parse_diff_stats`, `_filter_diff_files`)
+  - Removed diff-related methods from `InstructionGenerator` class (`generate_diff_output`, `_merge_consecutive_changes`)
+  - Removed diff command from CLI parser and help documentation
+  - Removed diff command examples from README.md and SKILL.md
+  - Updated documentation to reflect removal of diff functionality
+  
+**Reason**: The diff command was not providing significant value for code synchronization workflows
+
 ## [2.0.0] - 2026-04-29
 
 ### Changed
