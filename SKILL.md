@@ -10,6 +10,12 @@ Convert Git repository code to structured JSON instructions for AI agents and au
 
 This tool fetches code from Git repositories (GitHub, GitLab, Bitbucket, etc.) and generates **structured JSON instructions** that can be consumed by any AI agent or automation system for accurate code processing and updates.
 
+**Latest Features (v2.4.0):**
+- ✅ `info` command now includes complete file content in JSON output
+- ✅ Unified `--no-instructions` parameter across all commands
+- ✅ Consistent terminal output - always shows summary information
+- ✅ Flexible file output - full formatted or pure JSON format
+
 ---
 
 # 🔄 AI Agent Integration Architecture
@@ -211,6 +217,19 @@ When `repo-json-generator` processes code from a Git repository, it generates th
     "branch": "main",
     "commit": "abc123def456"
   },
+  "summary": {
+    "files_changed": 3,
+    "total_additions": 131,
+    "total_deletions": 98,
+    "files": [
+      {
+        "path": "src/file.ts",
+        "status": "modified",
+        "additions": 10,
+        "deletions": 5
+      }
+    ]
+  },
   "rules": [
     "1. MUST update ALL files in the files array - no exceptions",
     "2. MUST copy content EXACTLY as-is - no modifications, no reformatting, no 'improvements'",
@@ -226,11 +245,23 @@ When `repo-json-generator` processes code from a Git repository, it generates th
   "files": [
     {
       "path": "package.json",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 1,
+      "changes": [
+        { "type": "addition", "line": 5, "content": "..." }
+      ],
       "action": "CREATE_OR_OVERWRITE",
       "content": "{\n  \"name\": \"my-app\",\n  ...\n}"
     },
     {
       "path": "src/App.vue",
+      "status": "added",
+      "additions": 50,
+      "deletions": 0,
+      "changes": [
+        { "type": "addition", "line": 50, "content": "..." }
+      ],
       "action": "CREATE_OR_OVERWRITE",
       "content": "<template>\n  ...\n</template>"
     }
@@ -247,10 +278,19 @@ When `repo-json-generator` processes code from a Git repository, it generates th
 | `source` | Object | Git source information for traceability |
 | `source.repository` | String | Repository URL |
 | `source.branch` | String | Git branch name |
-| `source.commit` | String | Commit hash (8 chars) |
+| `source.commit` | String | Commit hash |
+| `summary` | Object | Change statistics and file list |
+| `summary.files_changed` | Number | Total number of changed files |
+| `summary.total_additions` | Number | Total lines added |
+| `summary.total_deletions` | Number | Total lines deleted |
+| `summary.files` | Array | List of changed files with stats |
 | `rules` | Array | Execution rules that AI agent must follow |
 | `files` | Array | List of files to update |
 | `files[].path` | String | Relative file path |
+| `files[].status` | String | File status: "added", "modified", or "deleted" |
+| `files[].additions` | Number | Lines added in this file |
+| `files[].deletions` | Number | Lines deleted in this file |
+| `files[].changes` | Array | Detailed diff information (optional) |
 | `files[].action` | String | Always "CREATE_OR_OVERWRITE" |
 | `files[].content` | String | Complete file content |
 
@@ -318,6 +358,8 @@ When users say any of the following, trigger `repo-json-generator`:
 - "从 Git 仓库生成指令"
 - "批量生成代码指令"
 - "导出代码到 JSON"
+- "查看 commit 信息"
+- "获取代码变更"
 
 ### English Commands
 - "Generate JSON instructions"
@@ -325,6 +367,8 @@ When users say any of the following, trigger `repo-json-generator`:
 - "Generate from Git repository"
 - "Batch generate code instructions"
 - "Export code to JSON"
+- "View commit info"
+- "Get code changes"
 
 ## Execution Flow
 
@@ -341,7 +385,7 @@ python3 scripts/repo_json_generator.py --help
 Review the help output to understand:
 - Available subcommands (`sync`, `info`)
 - Required parameters (`--repo`, `--commit`, etc.)
-- Optional parameters (`--filter`, `--exclude`, `--max-files`, `--output`)
+- Optional parameters (`--filter`, `--exclude`, `--max-files`, `--output`, `--no-instructions`)
 - Usage examples for different scenarios
 
 ### Step 1: User Provides Repository URL
@@ -363,7 +407,7 @@ python3 scripts/repo_json_generator.py sync \
   --commit abc123def456
 ```
 
-Output: Structured JSON template
+Output: Structured JSON template with summary
 
 ### Step 3: Send to Your AI Agent
 
@@ -406,6 +450,122 @@ Your AI agent processes the JSON and:
 - Creates/overwrites files
 - Returns completion status
 ```
+
+---
+
+# Info Command - Get Commit Information
+
+## Overview
+
+The `info` command provides detailed commit information including:
+- Commit metadata (author, date, message)
+- Changed files list with statistics
+- Detailed diff information (optional)
+- **Complete file content** for all changed files
+
+## Usage Examples
+
+### Get Commit Information
+
+```bash
+# Get specific commit information
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123def456
+```
+
+**Terminal Output (always shows summary):**
+```
+📊 Summary:
+  Files Changed: 3
+  Total Additions: +131
+  Total Deletions: -98
+
+📁 Changed Files (3):
+  🆕 Added: docs/GUEST_AUTH_AND_CONVERSION.md (+79/-0)
+  📝 Modified: src/contexts/AuthContext.tsx (+7/-91)
+  📝 Modified: src/db/guest.ts (+45/-7)
+```
+
+### Save to File
+
+```
+# Save full formatted output (summary + JSON) to file
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123def456 \
+  --output changes.json
+```
+
+- **File**: Contains full formatted output (summary + JSON)
+- **Terminal**: Shows summary information
+
+### Save Pure JSON
+
+```
+# Save pure JSON to file (terminal still shows summary)
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123def456 \
+  --output changes.json \
+  --no-instructions
+```
+
+- **File**: Contains pure JSON only
+- **Terminal**: Shows summary information
+
+## JSON Structure
+
+The `info` command generates a comprehensive JSON structure:
+
+```json
+{
+  "action": "CREATE_OR_UPDATE_FILES",
+  "description": "Please create or update all files...",
+  "source": {
+    "repository": "https://github.com/user/repo",
+    "branch": "main",
+    "commit": "abc123def456"
+  },
+  "summary": {
+    "files_changed": 3,
+    "total_additions": 131,
+    "total_deletions": 98,
+    "files": [
+      {
+        "path": "src/file.ts",
+        "status": "modified",
+        "additions": 10,
+        "deletions": 5
+      }
+    ]
+  },
+  "rules": [...],
+  "files": [
+    {
+      "path": "src/file.ts",
+      "status": "modified",
+      "additions": 10,
+      "deletions": 5,
+      "changes": [
+        { "type": "deletion", "line": 10, "content": "old code" },
+        { "type": "addition", "line": 10, "content": "new code" }
+      ],
+      "content": "// Complete file content here..."
+    }
+  ]
+}
+```
+
+## Output Behavior Summary
+
+| Scenario | Terminal | File |
+|----------|----------|------|
+| No `--output` | Shows summary | Not saved |
+| With `--output` | Shows summary | Full formatted (summary + JSON) |
+| `--output` + `--no-instructions` | Shows summary | Pure JSON only |
+
+**Key Point**: Terminal **always** displays summary information in all scenarios.
 
 ---
 

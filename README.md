@@ -183,29 +183,32 @@ python3 scripts/repo_json_generator.py info \
   --repo https://github.com/username/my-project \
   --branch develop
 
-# Get full changes of a commit (including file diffs)
+# Get full changes of a commit (including file diffs and complete file content)
 python3 scripts/repo_json_generator.py info \
   --repo https://github.com/username/my-project \
   --commit dbc95d3f5c708709e83b2ae3bd1a1354fb4d43b1 \
-  --full \
   --output commit_changes.json
 
-# Get full changes in JSON format
+# Get full changes in pure JSON format (terminal still shows summary)
 python3 scripts/repo_json_generator.py info \
   --repo https://github.com/username/my-project \
   --commit abc123def456 \
-  --full \
-  --json-only \
-  --output changes.json
+  --output changes.json \
+  --no-instructions
 ```
 
 **Parameters:**
 - `--repo`: GitHub repository URL (required)
 - `--branch`: Branch name (default: main, used when --commit is not specified)
 - `--commit`: Specific commit hash (optional, overrides branch)
-- `--full`: Get full changes including file diffs (requires --commit)
 - `--output`: Save output to file instead of printing to terminal
-- `--json-only`: Output only pure JSON without formatted instruction text
+- `--no-instructions`: Output only pure JSON without formatted instruction text
+
+**Output Behavior:**
+- **All scenarios**: Terminal always displays summary (file count, additions, deletions, file list)
+- **With `--output`**: Saves full formatted output to file, terminal shows summary
+- **With `--output` + `--no-instructions`**: Saves pure JSON to file, terminal shows summary
+- **Without `--output`**: Terminal shows summary only, no file saved
 
 ---
 
@@ -271,7 +274,7 @@ python3 scripts/repo_json_generator.py sync [options]
 
 ### info Command
 
-Get detailed commit/repository information.
+Get detailed commit information with full file content and changes.
 
 ```bash
 python3 scripts/repo_json_generator.py info [options]
@@ -283,9 +286,14 @@ python3 scripts/repo_json_generator.py info [options]
 **Optional:**
 - `--branch BRANCH`: Branch name (default: main, used when --commit is not specified)
 - `--commit COMMIT`: Specific commit hash (optional, overrides branch)
-- `--full`: Get full changes including file diffs (requires --commit)
 - `--output FILE`: Save output to file
-- `--json-only`: Output only JSON without formatted text
+- `--no-instructions`: Output only pure JSON without formatted text
+
+**Output Behavior:**
+- Terminal always displays summary information (file count, additions, deletions, file list)
+- With `--output`: saves full formatted output (summary + JSON) to file
+- With `--output` + `--no-instructions`: saves pure JSON to file
+- Without `--output`: terminal shows summary only, no file saved
 
 **Examples:**
 ```bash
@@ -295,11 +303,51 @@ python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo
 # Get specific commit information
 python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123
 
-# Get full changes of a commit (including diffs)
-python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123 --full --output changes.json
+# Get full changes with complete file content (saves to file)
+python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123 --output changes.json
 
-# Get full changes in JSON format
-python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123 --full --json-only --output changes.json
+# Get full changes in pure JSON format (terminal still shows summary)
+python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123 --output changes.json --no-instructions
+```
+
+**JSON Output Structure:**
+```json
+{
+  "action": "CREATE_OR_UPDATE_FILES",
+  "description": "...",
+  "source": {
+    "repository": "...",
+    "branch": "...",
+    "commit": "..."
+  },
+  "summary": {
+    "files_changed": 3,
+    "total_additions": 131,
+    "total_deletions": 98,
+    "files": [
+      {
+        "path": "src/file.ts",
+        "status": "modified",
+        "additions": 10,
+        "deletions": 5
+      }
+    ]
+  },
+  "rules": [...],
+  "files": [
+    {
+      "path": "src/file.ts",
+      "status": "modified",
+      "additions": 10,
+      "deletions": 5,
+      "changes": [
+        { "type": "deletion", "line": 10, "content": "..." },
+        { "type": "addition", "line": 10, "content": "..." }
+      ],
+      "content": "// Complete file content..."
+    }
+  ]
+}
 ```
 
 ---
@@ -426,4 +474,4 @@ A versatile tool for generating structured code instructions for AI agents and a
 ---
 
 **Last Updated**: 2026-04-29  
-**Version**: 2.0.0
+**Version**: 2.4.0

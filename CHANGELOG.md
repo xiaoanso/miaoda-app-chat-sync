@@ -5,6 +5,87 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-04-29
+
+### Added
+- **New**: `info` command now includes full file content in JSON output
+  - Each file in the `files` array now includes a `content` field with complete file content
+  - For added/modified files: contains the full file text
+  - For deleted files: `content` field is an empty string
+  - Enables AI agents to directly create or update files without additional fetch operations
+
+- **New**: Added `--no-instructions` parameter to `info` command (replacing `--json-only`)
+  - Unified parameter naming across `sync` and `info` commands
+  - `--no-instructions`: outputs only pure JSON without formatted text
+  - Maintains backward compatibility with existing workflows
+
+### Changed
+- **Enhanced**: Optimized `info` command output behavior for all scenarios
+  - **All scenarios**: Terminal always displays summary information (file count, additions, deletions, file list)
+  - **With `--output`**: Saves full formatted output (summary + JSON) to file, terminal shows summary
+  - **With `--output` + `--no-instructions`**: Saves pure JSON to file, terminal shows summary
+  - **Without `--output`**: Terminal shows summary only, no file saved
+  - Ensures consistent user experience across all usage patterns
+
+- **Improved**: JSON structure now combines diff information with full file content
+  - `summary` field: provides change statistics and file list
+  - `files` array: includes both diff changes (`changes` field) and complete content (`content` field)
+  - AI agents can choose to use diff-based updates or full file replacement
+
+**New JSON Structure Example:**
+```json
+{
+  "action": "CREATE_OR_UPDATE_FILES",
+  "summary": {
+    "files_changed": 3,
+    "total_additions": 131,
+    "total_deletions": 98,
+    "files": [
+      {
+        "path": "src/file.ts",
+        "status": "modified",
+        "additions": 10,
+        "deletions": 5
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "src/file.ts",
+      "status": "modified",
+      "additions": 10,
+      "deletions": 5,
+      "changes": [
+        { "type": "deletion", "line": 10, "content": "..." },
+        { "type": "addition", "line": 10, "content": "..." }
+      ],
+      "content": "// Complete file content here..."
+    }
+  ]
+}
+```
+
+**Usage Examples:**
+```bash
+# Save full formatted output to file, terminal shows summary
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123 \
+  --output changes.json
+
+# Save pure JSON to file, terminal shows summary
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123 \
+  --output changes.json \
+  --no-instructions
+
+# Terminal shows summary only, no file saved
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123
+```
+
 ## [2.3.0] - 2026-04-29
 
 ### Changed
