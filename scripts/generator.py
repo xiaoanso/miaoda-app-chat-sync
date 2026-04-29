@@ -50,18 +50,9 @@ def create_parser() -> argparse.ArgumentParser:
         description='Repo JSON Generator - Convert Git repository code to structured JSON instructions for AI agents',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  # Sync entire repository
-  python3 scripts/generator.py sync --repo https://github.com/user/repo --commit abc123
-
-  # Get commit information with file contents
-  python3 scripts/generator.py info --repo https://github.com/user/repo --commit abc123
-
-  # Sync with file filtering
-  python3 scripts/generator.py sync --repo https://github.com/user/repo --filter "*.py,*.js" --max-files 30
-
-  # Save output to file
-  python3 scripts/generator.py info --repo https://github.com/user/repo --output changes.json
+Usage:
+  python3 scripts/generator.py sync --repo URL --branch BRANCH [--commit COMMIT] [options]
+  python3 scripts/generator.py info --repo URL --branch BRANCH [--commit COMMIT] [options]
 """
     )
     
@@ -73,7 +64,8 @@ Examples:
         help='Generate JSON instructions for code synchronization'
     )
     sync_parser.add_argument('--repo', required=True, help='Git repository URL')
-    sync_parser.add_argument('--commit', help='Specific commit hash (defaults to latest)')
+    sync_parser.add_argument('--branch', required=True, help='Branch name (required)')
+    sync_parser.add_argument('--commit', help='Specific commit hash (defaults to latest on branch)')
     sync_parser.add_argument('--filter', help='Include only files matching patterns (e.g., "*.py,*.js")')
     sync_parser.add_argument('--exclude', help='Exclude files matching patterns (e.g., "*.md,test/*")')
     sync_parser.add_argument('--max-files', type=int, default=50, help='Maximum number of files to process (default: 50)')
@@ -87,7 +79,8 @@ Examples:
         help='Get commit information and changed files with contents'
     )
     info_parser.add_argument('--repo', required=True, help='Git repository URL')
-    info_parser.add_argument('--commit', help='Specific commit hash (defaults to latest)')
+    info_parser.add_argument('--branch', required=True, help='Branch name (required)')
+    info_parser.add_argument('--commit', help='Specific commit hash (defaults to latest on branch)')
     info_parser.add_argument('--filter', help='Include only files matching patterns (e.g., "*.ts,*.tsx")')
     info_parser.add_argument('--exclude', help='Exclude files matching patterns (e.g., "*.md,docs/*")')
     info_parser.add_argument('--output', help='Save output to file')
@@ -100,8 +93,7 @@ Examples:
 def cmd_sync(args, generator: RepoJSONGenerator):
     """Handle sync command"""
     try:
-        # Auto-detect branch
-        branch = generator._detect_default_branch(args.repo)
+        branch = args.branch
         
         # If commit not specified, get latest commit
         commit = args.commit
@@ -140,6 +132,17 @@ def cmd_sync(args, generator: RepoJSONGenerator):
             command_type='sync'
         )
         
+        # Display summary
+        summary = result.get('summary', {})
+        print(f"📊 Summary:")
+        print(f"  Files Changed: {summary.get('files_changed', 0)}")
+        print(f"  Total Files: {summary.get('total_files', 0)}")
+        print()
+        
+        print(f"📁 Changed Files ({summary.get('files_changed', 0)}):")
+        for file_info in summary.get('files', []):
+            print(f"  📝 {file_info['path']} ({file_info.get('size', 0)} chars)")
+        
         # Output result
         instruction_gen = InstructionGenerator()
         instruction_gen.output_result(result, args.output, args.no_instructions)
@@ -152,8 +155,7 @@ def cmd_sync(args, generator: RepoJSONGenerator):
 def cmd_info(args, generator: RepoJSONGenerator):
     """Handle info command"""
     try:
-        # Auto-detect branch if commit not specified
-        branch = generator._detect_default_branch(args.repo)
+        branch = args.branch
         
         # If commit not specified, get latest commit
         commit = args.commit
@@ -182,14 +184,13 @@ def cmd_info(args, generator: RepoJSONGenerator):
             print(f"   ⛔ Exclude: {args.exclude}")
         print()
         
-        # Get commit full changes (includes file contents)
-        result = generator.get_commit_full_changes(
+        # Get diff info (statistics only, not full content)
+        result = generator.get_commit_diff_changes(
             repo_url=args.repo,
             commit=commit,
             branch=branch,
             file_filter=args.filter,
-            exclude_filter=args.exclude,
-            command_type='info'
+            exclude_filter=args.exclude
         )
         
         # Display summary

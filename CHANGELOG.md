@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.0] - 2026-04-30
+
+### Added
+- **Mandatory `--branch` parameter**: Both `sync` and `info` commands now require explicit branch specification
+  - Removed automatic branch detection logic
+  - Ensures explicit and predictable branch selection
+  - Better clarity in command usage
+
+### Changed
+- **Separated `sync` and `info` command behaviors**:
+  - **`sync` command**: Retrieves complete file content for changed files (for code synchronization)
+    - Uses `get_commit_full_changes()` method
+    - Returns full file content with `CREATE_OR_OVERWRITE` action
+    - Output includes file size in characters
+  - **`info` command**: Retrieves diff statistics for changed files (for change overview)
+    - Uses new `get_commit_diff_changes()` method
+    - Returns additions/deletions statistics per file
+    - Terminal output shows `+additions/-deletions` format
+    - Displays file status icons (🆕 for added, 📝 for modified)
+
+### Fixed
+- **Info command regression**: Restored original `info` command output format with diff statistics
+- **Data structure separation**: Each command now uses appropriate data structure for its purpose
+
+---
+
 ## [3.1.0] - 2026-04-29
 
 ### Changed

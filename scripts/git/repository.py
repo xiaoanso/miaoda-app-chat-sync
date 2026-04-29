@@ -343,7 +343,165 @@ class RepoJSONGenerator:
         merged.append(current)
         return merged
 
-    def get_commit_full_changes(self, repo_url: str, commit: str, branch: str = 'master', 
+    def get_commit_diff_changes(self, repo_url: str, commit: str, branch: str = 'main', 
+                             file_filter: str = None, exclude_filter: str = None) -> Dict:
+        """
+        Get detailed diff information for files changed in a specific commit.
+        
+        Args:
+            repo_url: Git repository URL
+            commit: Commit hash
+            branch: Branch name
+            file_filter: Comma-separated file patterns to include
+            exclude_filter: Comma-separated file patterns to exclude
+        
+        Returns:
+            Dict containing commit info and detailed file changes with line numbers
+        """
+        with temp_directory(prefix='github-info-') as temp_dir:
+            # Clone and checkout the specific commit
+            self.clone_repo(repo_url, temp_dir, branch=branch, commit=commit)
+            
+            # Get commit info
+            format_str = '%H||%h||%s||%b||%an||%ae||%aI||%cn||%ce||%cI||%P'
+            cmd = ['git', '-C', temp_dir, 'log', '-1', f'--format={format_str}', commit]
+            result = self._execute_git_command(cmd, cwd=temp_dir, timeout=30)
+            
+            if result.returncode != 0:
+                raise Exception(f"Failed to get commit info")
+            
+            lines = result.stdout.strip().split('||')
+            if len(lines) < 11:
+                raise Exception("Invalid git log output format")
+            
+            (commit_hash, short_hash, subject, body, 
+             author_name, author_email, author_date,
+             committer_name, committer_email, committer_date, 
+             parents) = lines
+            
+            parent_list = parents.split() if parents else []
+            
+            # Get detailed diff with line numbers
+            if parent_list:
+                parent_commit = parent_list[0]
+                cmd = ['git', '-C', temp_dir, 'diff', '--unified=0', parent_commit, commit]
+            else:
+                # Initial commit
+                cmd = ['git', '-C', temp_dir, 'diff', '--unified=0', '--root', commit]
+            
+            result = self._execute_git_command(cmd, cwd=temp_dir, timeout=120)
+            
+            if result.returncode != 0:
+                raise Exception("Failed to get diff")
+            
+            # Parse diff output
+            import re
+            files_dict = {}
+            current_file = None
+            new_line = 0
+            old_line = 0
+            
+            for line in result.stdout.split('\n'):
+                if line.startswith('diff --git'):
+                    # Parse file path
+                    parts = line.split(' b/')
+                    if len(parts) == 2:
+                        file_path = parts[1]
+                        current_file = {
+                            'path': file_path,
+                            'status': 'modified',
+                            'additions': 0,
+                            'deletions': 0,
+                            'changes': []
+                        }
+                        files_dict[file_path] = current_file
+                    
+                elif line.startswith('new file mode'):
+                    if current_file:
+                        current_file['status'] = 'added'
+                        
+                elif line.startswith('deleted file mode'):
+                    if current_file:
+                        current_file['status'] = 'deleted'
+                        
+                elif line.startswith('@@'):
+                    # Parse hunk header: @@ -old_start,old_count +new_start,new_count @@
+                    match = re.search(r'-(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?', line)
+                    if match:
+                        old_line = int(match.group(1))
+                        new_line = int(match.group(3))
+                        
+                elif line.startswith('+') and not line.startswith('+++') and current_file:
+                    current_file['additions'] += 1
+                    current_file['changes'].append({
+                        'type': 'addition',
+                        'line': new_line,
+                        'content': line[1:]
+                    })
+                    new_line += 1
+                    
+                elif line.startswith('-') and not line.startswith('---') and current_file:
+                    current_file['deletions'] += 1
+                    current_file['changes'].append({
+                        'type': 'deletion',
+                        'line': old_line,
+                        'content': line[1:]
+                    })
+                    old_line += 1
+            
+            # Merge consecutive changes
+            files_list = []
+            for file_path, file_info in files_dict.items():
+                merged_changes = self._merge_consecutive_changes(file_info['changes'])
+                file_info['changes'] = merged_changes
+                files_list.append(file_info)
+            
+            print(f"   📄 Files changed in commit: {len(files_list)}")
+            
+            # Apply filters
+            if file_filter or exclude_filter:
+                from processors.file_processor import FileProcessor
+                processor = FileProcessor(file_filter=file_filter, exclude_filter=exclude_filter)
+                
+                filtered_files = []
+                for file_info in files_list:
+                    if processor._should_include_file(file_info['path']):
+                        filtered_files.append(file_info)
+                    else:
+                        print(f"   ⏭️  Filtered out: {file_info['path']}")
+                files_list = filtered_files
+                print(f"   📄 Files after filtering: {len(files_list)}")
+            
+            # Get prompt configuration
+            prompt_config = PromptConfig.get_prompt('info')
+            
+            return {
+                'action': prompt_config['action'],
+                'description': prompt_config['description'],
+                'source': {
+                    'repository': SensitiveInfoHandler.redact_url(repo_url),
+                    'branch': branch,
+                    'commit': commit_hash
+                },
+                'summary': {
+                    'files_changed': len(files_list),
+                    'total_additions': sum(f['additions'] for f in files_list),
+                    'total_deletions': sum(f['deletions'] for f in files_list),
+                    'files': [
+                        {
+                            'path': f['path'],
+                            'status': f['status'],
+                            'additions': f['additions'],
+                            'deletions': f['deletions']
+                        }
+                        for f in files_list
+                    ]
+                },
+                'rules': prompt_config['rules'],
+                'files': files_list
+            }
+
+    def get_commit_full_changes(self, repo_url: str, commit: str, branch: str = 'main', 
                                 file_filter: str = None, exclude_filter: str = None,
                                 command_type: str = 'sync') -> Dict:
         """
@@ -362,7 +520,7 @@ class RepoJSONGenerator:
         """
         with temp_directory(prefix='github-sync-') as temp_dir:
             # Clone and checkout the specific commit
-            self.clone_repo(repo_url, temp_dir, branch='main', commit=commit)
+            self.clone_repo(repo_url, temp_dir, branch=branch, commit=commit)
             
             # Get commit info
             format_str = '%H||%h||%s||%b||%an||%ae||%aI||%cn||%ce||%cI||%P'
