@@ -360,9 +360,17 @@ class RepoJSONGenerator:
         merged.append(current)
         return merged
 
-    def get_commit_full_changes(self, repo_url: str, commit: str, branch: str = 'main') -> Dict:
+    def get_commit_full_changes(self, repo_url: str, commit: str, branch: str = 'main', 
+                                file_filter: str = None, exclude_filter: str = None) -> Dict:
         """
         Get full changes of a specific commit including file diffs.
+        
+        Args:
+            repo_url: Git repository URL
+            commit: Commit hash
+            branch: Branch name
+            file_filter: Comma-separated file patterns to include (e.g., "*.py,*.js")
+            exclude_filter: Comma-separated file patterns to exclude (e.g., "*.md,*.txt")
         
         Returns:
             {
@@ -382,7 +390,8 @@ class RepoJSONGenerator:
                                 "line": N,
                                 "content": "..."
                             }
-                        ]
+                        ],
+                        "content": "..."
                     }
                 ]
             }
@@ -476,11 +485,20 @@ class RepoJSONGenerator:
                         'line': new_start if 'new_start' in dir() else 0,
                         'content': line[1:]
                     })
-                    # Deletions don't increment new_start in the new file context, 
-                    # but logically we might want to track old line numbers if needed.
-                    # The reference implementation uses new_start which might be slightly off for deletions 
-                    # relative to the NEW file state, but typically deletions are identified by what's missing.
-                    # However, strictly following the provided reference logic:
+            
+            # Apply file filters
+            if file_filter or exclude_filter:
+                # Create FileProcessor instance for filtering
+                processor = FileProcessor(file_filter=file_filter, exclude_filter=exclude_filter)
+                
+                # Filter files
+                filtered_files = {}
+                for file_path, file_info in files_dict.items():
+                    if processor._should_include_file(file_path):
+                        filtered_files[file_path] = file_info
+                    else:
+                        print(f"   ⏭️  Filtered out: {file_path}")
+                files_dict = filtered_files
             
             # Merge consecutive changes of the same type and read full file content
             files_list = []
@@ -1044,11 +1062,22 @@ def cmd_info(args):
     print(f"📌 Commit: {args.commit}")
     print(f"📋 Mode: Full changes (including diffs)")
     
+    if args.filter:
+        print(f"📥 Filter: {args.filter}")
+    if args.exclude:
+        print(f"🚫 Exclude: {args.exclude}")
+    
     try:
         gh = RepoJSONGenerator(args.token)
         
         print(f"\n📥 Fetching full changes for commit {args.commit[:8]}...")
-        info_data = gh.get_commit_full_changes(args.repo, commit=args.commit, branch=args.branch)
+        info_data = gh.get_commit_full_changes(
+            args.repo, 
+            commit=args.commit, 
+            branch=args.branch,
+            file_filter=args.filter,
+            exclude_filter=args.exclude
+        )
         
         generator = InstructionGenerator()
         
@@ -1135,11 +1164,16 @@ Requirement 2: Get detailed commit information
 python3 repo_json_generator.py info --repo URL --commit abc123
 python3 repo_json_generator.py info --repo URL --commit abc123 --no-instructions
 python3 repo_json_generator.py info --repo URL --commit abc123 --output info.json
+python3 repo_json_generator.py info --repo URL --commit abc123 --filter "*.py,*.js"
+python3 repo_json_generator.py info --repo URL --commit abc123 --exclude "*.md,*.txt"
+python3 repo_json_generator.py info --repo URL --commit abc123 --filter "*.py" --exclude "*.test.py"
 
 Parameter Description:
   --repo         GitHub repository URL (required)
   --branch       Branch name (default: main)
   --commit       Specific commit hash (required)
+  --filter       Specify file patterns to include (whitelist), supports: *.py,*.md or src/*.py etc.
+  --exclude      Specify file patterns to exclude (blacklist), supports: *.md,*.txt etc.
   --output       Save output to file instead of printing to terminal
   --no-instructions  Output only pure JSON without formatted instruction text
 """
@@ -1171,6 +1205,8 @@ Parameter Description:
     p.add_argument('--repo', required=True, help='GitHub repository URL')
     p.add_argument('--branch', default='main', help='Branch name (default: main)')
     p.add_argument('--commit', required=True, help='Specific commit hash (required)')
+    p.add_argument('--filter', help='File pattern filter to include (e.g., "*.py,*.js")')
+    p.add_argument('--exclude', help='File pattern filter to exclude (e.g., "*.md,*.txt")')
     p.add_argument('--output', help='Output to file instead of stdout')
     p.add_argument('--no-instructions', action='store_true', help='Output only JSON')
     p.set_defaults(func=cmd_info)
