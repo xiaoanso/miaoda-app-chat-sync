@@ -251,7 +251,7 @@ Complete! Code processed by AI agent
 
 ### JSON Template Format
 
-```json
+``json
 {
   "action": "CREATE_OR_UPDATE_FILES",
   "description": "Please create or update all files...",
@@ -307,7 +307,7 @@ When codebase exceeds thresholds, the tool automatically suggests batch processi
 
 ### Recommended Batch Strategy
 
-```bash
+```
 # Batch 1: Configuration files
 python3 scripts/generator.py sync \
   --repo <repo_url> \
@@ -340,7 +340,7 @@ python3 scripts/generator.py sync \
 
 ---
 
-## 🔧 Configuration
+## 🔒 Security & Configuration
 
 ### Environment Variables
 
@@ -348,31 +348,85 @@ python3 scripts/generator.py sync \
 |----------|-------------|----------|
 | `GITHUB_TOKEN` | GitHub Personal Access Token (for private repos) | Optional |
 
-### Setup GitHub Token
+### Token Setup
 
+**Public Repositories** (No Token Required):
 ```bash
-# For private repositories
-export GITHUB_TOKEN="ghp_your_token_here"
+python3 scripts/generator.py sync --repo https://github.com/user/public-repo
 ```
 
-Token only needs `repo` read permission.
+**Private Repositories** (Token Required):
+```bash
+# Step 1: Create token (GitHub → Settings → Developer settings → Personal access tokens)
+# Step 2: Set environment variable
+export GITHUB_TOKEN="ghp_your_token"
+# Step 3: Use the tool
+python3 scripts/generator.py sync --repo https://github.com/user/private-repo
+```
+
+**Token Requirements:**
+- Only needs `repo` read permission
+- Format: `ghp_*`, `gho_*`, `ghu_*`, `ghs_*, or `ghr_*`
+
+### Security Mechanisms
+
+**1. Automatic Token Detection**
+- Public repos: Direct clone without token
+- Private repos: Automatic token injection
+- Non-GitHub repos: Token not applied
+
+**2. Sensitive Information Redaction**
+All sensitive data automatically detected and masked:
+- GitHub Tokens: `ghp_*` → `<GITHUB_TOKEN>`
+- API Keys, Passwords, Bearer Tokens: Auto-redacted
+
+**3. URL Credential Removal**
+All URLs in output automatically cleaned:
+```
+Input:  https://x-access-token:ghp_abc123@github.com/user/repo.git
+Output: https://github.com/user/repo.git
+```
+
+**4. Secure Git Operations**
+- Non-interactive mode (`GIT_TERMINAL_PROMPT=0`)
+- Token via URL (not in command-line args)
+- Not visible in process list
+
+**5. Temporary File Security (Cross-Platform)**
+- Auto-cleanup after execution
+- No sensitive data remains on disk
+- UUID-based unique directory names
+
+**Temporary Locations:**
+| Platform | Location | Example |
+|----------|----------|---------|
+| macOS/Linux | `/tmp/github-<uuid>/` | `/tmp/github-a1b2c3d4/` |
+| Windows | `%TEMP%\github-<uuid>\` | `C:\Users\user\AppData\Local\Temp\github-a1b2c3d4\` |
+
+**Cleanup Mechanisms:**
+- Context manager (`with temp_directory()`)
+- `atexit` handler for guaranteed cleanup
+- Signal handlers (`SIGTERM`, `SIGINT`)
 
 ---
 
 ## 📁 Temporary Files
 
-### Clone Locations
+### Clone Locations (Cross-Platform)
 
-| Command | Location | Notes |
-|---------|----------|-------|
-| `sync` | `/tmp/github-sync-<repo-name>/` | Persists during execution |
-| `info` | `/tmp/github-info-<random>/` | Auto-deleted immediately |
+The tool uses system temporary directory with UUID-based names:
+
+| Platform | Location | Example |
+|----------|----------|---------|
+| **macOS/Linux** | `/tmp/github-<uuid>/` | `/tmp/github-a1b2c3d4/` |
+| **Windows** | `%TEMP%\github-<uuid>\` | `C:\Users\<user>\AppData\Local\Temp\github-a1b2c3d4\` |
 
 ### Quick Notes
 
 - ✅ **Auto-cleanup**: All temporary directories are removed after script finishes
-- ✅ **Inspect during run**: Check `/tmp/github-sync-*/` while script is executing
+- ✅ **Unique names**: UUID-based directory names prevent conflicts
 - ✅ **Security**: No sensitive data remains on disk after execution
+- ✅ **Guaranteed cleanup**: Uses context manager, atexit handler, and signal handlers
 
 ---
 

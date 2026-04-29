@@ -374,23 +374,157 @@ For large projects, JSON is split into multiple batches:
 
 ---
 
+# 🔒 Security Mechanisms
+
+## Overview
+
+This tool implements comprehensive security mechanisms to protect sensitive information when working with Git repositories.
+
+## Security Features
+
+### 1. Token Management
+
+**Public Repositories**: No token required, direct clone
+
+**Private Repositories**: Set `GITHUB_TOKEN` environment variable
+
+```bash
+export GITHUB_TOKEN="ghp_your_token"
+```
+
+**Token Requirements:**
+- Only needs `repo` read permission
+- Format: `ghp_*`, `gho_*`, `ghu_*`, `ghs_*, or `ghr_*`
+- Never store in code or files
+
+**Automatic Detection:**
+- Public repos: Direct clone without token
+- Private repos: Automatic token injection
+- Token only exists in memory during execution
+
+### 2. Sensitive Information Protection
+
+**Automatic Redaction:**
+All sensitive data is automatically detected and masked:
+- GitHub Tokens: `ghp_*` → `<GITHUB_TOKEN>`
+- Slack Tokens: `xox[baprs]-*` → `<SLACK_TOKEN>`
+- API Keys: `AIza*` → `<GOOGLE_API_KEY>`
+- Passwords: `password=xxx` → `password=<REDACTED>`
+
+**URL Credential Removal:**
+```
+Input:  https://x-access-token:ghp_abc123@github.com/user/repo.git
+Output: https://github.com/user/repo.git
+```
+
+Applied to: JSON output, terminal summaries, logs, error messages
+
+### 3. Secure Git Operations
+
+**Non-Interactive Mode:**
+```bash
+GIT_ASKPASS=echo          # Prevent password prompts
+GIT_TERMINAL_PROMPT=0     # Disable terminal prompt
+```
+
+**Token Security:**
+- ✅ Token passed via URL (not in command-line arguments)
+- ✅ Not visible in process list
+- ✅ Only exists in memory during execution
+
+### 4. Temporary File Security
+
+**Auto-Cleanup:**
+- All temporary directories deleted after execution
+- No sensitive data remains on disk
+- UUID-based unique names prevent conflicts
+
+**Temporary Locations (Cross-Platform):**
+
+| Platform | Location | Format |
+|----------|----------|--------|
+| **macOS/Linux** | `/tmp/github-<uuid>/` | `/tmp/github-a1b2c3d4/` |
+| **Windows** | `%TEMP%\github-<uuid>\` | `C:\Users\<user>\AppData\Local\Temp\github-a1b2c3d4\` |
+
+**Cleanup Mechanisms:**
+- Context manager (`with temp_directory()`)
+- `atexit` handler for guaranteed cleanup
+- Signal handlers (`SIGTERM`, `SIGINT`)
+
+### 5. Secure Logging & Errors
+
+All log output and error messages are automatically sanitized:
+
+```python
+# All sensitive data automatically redacted
+logger.info("Cloning with token:", token)  # Shows: <GITHUB_TOKEN>
+```
+
+## Security Best Practices
+
+### ✅ DO:
+
+1. Use environment variables for tokens
+2. Use minimal permissions (read-only)
+3. Rotate tokens regularly
+4. Verify output doesn't contain tokens
+5. Use .gitignore for sensitive files
+
+### ❌ DON'T:
+
+1. Never hardcode tokens in code
+2. Never log token values
+3. Never store tokens in plain text files
+4. Never commit tokens to Git
+
+## Troubleshooting
+
+### Token Not Working
+
+```bash
+# 1. Verify token is set
+echo $GITHUB_TOKEN
+
+# 2. Check permissions (GitHub → Settings → Developer settings)
+
+# 3. Test manually
+git ls-remote https://x-access-token:$GITHUB_TOKEN@github.com/user/repo.git
+```
+
+### Permission Denied
+
+```bash
+# Ensure non-interactive mode
+export GIT_TERMINAL_PROMPT=0
+```
+
+---
+
 # 📁 Temporary Clone Locations
 
 When this tool runs, it temporarily clones repositories to process code. All directories are automatically cleaned up after execution.
 
-## Clone Paths
+## Clone Paths (Cross-Platform)
 
-| Command | Location | Notes |
-|---------|----------|-------|
-| `sync` | `/tmp/github-sync-<repo-name>/` | Persists during execution |
-| `info` | `/tmp/github-info-<random>/` | Auto-deleted immediately |
+The tool uses system temporary directory via `tempfile.gettempdir()`:
+
+| Platform | Location | Format |
+|----------|----------|--------|
+| **macOS/Linux** | `/tmp/github-<uuid>/` | `/tmp/github-a1b2c3d4/` |
+| **Windows** | `%TEMP%\github-<uuid>\` | `C:\Users\<user>\AppData\Local\Temp\github-a1b2c3d4\` |
 
 ## Quick Notes
 
-- **Auto-cleanup**: All temporary directories are removed after script finishes
-- **Inspect during run**: Check `/tmp/github-sync-*/` while script is executing
-- **Security**: No sensitive data remains on disk after execution
-- **Debugging**: Comment out `shutil.rmtree()` in code to prevent cleanup if needed
+- ✅ **Auto-cleanup**: All temporary directories are removed after script finishes
+- ✅ **Unique names**: UUID-based directory names prevent conflicts
+- ✅ **Security**: No sensitive data remains on disk after execution
+- ✅ **Guaranteed cleanup**: Uses context manager, atexit handler, and signal handlers
+
+## Cleanup Mechanisms
+
+1. **Context Manager**: `with temp_directory()` ensures cleanup on exit
+2. **Atexit Handler**: Registered to clean up on normal program exit
+3. **Signal Handlers**: Catches `SIGTERM` and `SIGINT` for cleanup on interruption
 
 ---
 
