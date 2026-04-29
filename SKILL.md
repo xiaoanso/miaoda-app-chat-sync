@@ -10,12 +10,59 @@ Convert Git repository code to structured JSON instructions for AI agents and au
 
 This tool fetches code from Git repositories (GitHub, GitLab, Bitbucket, etc.) and generates **structured JSON instructions** that can be consumed by any AI agent or automation system for accurate code processing and updates.
 
-**Latest Features (v2.5.0):**
+**Version 3.0.0 - Modular Architecture (Latest)**
+- ✅ **NEW**: Modular codebase architecture for better maintainability
 - ✅ `info` command now includes complete file content in JSON output
 - ✅ Unified `--no-instructions` parameter across all commands
 - ✅ Consistent terminal output - always shows summary information
 - ✅ Flexible file output - full formatted or pure JSON format
-- ✅ **NEW**: `info` command supports `--filter` and `--exclude` parameters for file filtering
+- ✅ `info` command supports `--filter` and `--exclude` parameters for file filtering
+
+---
+
+# 🏗️ Architecture Overview (v3.0.0)
+
+## Modular Structure
+
+The codebase has been restructured from a single monolithic script into a modular architecture:
+
+```
+scripts/
+├── generator.py          # Main entry point (CLI router)
+├── core/
+│   ├── constants.py                # Shared constants and configuration
+│   ├── temp_manager.py             # Cross-platform temp directory management
+│   ├── circuit_breaker.py          # Circuit breaker & retry mechanism
+│   └── security.py                 # Sensitive information protection
+├── git/
+│   └── repository.py               # Git repository operations
+├── processors/
+│   ├── file_processor.py           # File reading and filtering
+│   └── instruction_gen.py          # JSON instruction generation
+└── output/
+    └── streaming.py                # Streaming/chunked output
+```
+
+## Module Dependencies
+
+```
+core/ (no dependencies)
+  ↓
+git/ (depends on core)
+  ↓
+processors/ (depends on core, git)
+  ↓
+output/ (depends on processors)
+  ↓
+generator.py (depends on all modules)
+```
+
+## Benefits
+
+- **Maintainability**: Each module can be updated independently
+- **Testability**: Modules can be tested in isolation
+- **Reusability**: Core components can be reused in other projects
+- **Readability**: Smaller, focused files are easier to understand
 
 ---
 
@@ -23,7 +70,7 @@ This tool fetches code from Git repositories (GitHub, GitLab, Bitbucket, etc.) a
 
 ## Overview
 
-This tool (`repo-json-generator`) generates structured JSON from Git repositories that can be consumed by **any AI agent or automation system**:
+This tool (`generator`) generates structured JSON from Git repositories that can be consumed by **any AI agent or automation system**:
 
 ```
 ┌─────────────────────┐         ┌──────────────────────┐
@@ -56,7 +103,7 @@ User Request
     ↓
 "Generate JSON from Git repo" / "Convert code to JSON"
     ↓
-Step 1: repo-json-generator
+Step 1: generator
     ├─ Clone repository from Git
     ├─ Read all code files
     ├─ Generate structured JSON instructions
@@ -77,7 +124,7 @@ Complete! Code processed by AI agent
 ```
 User says: "Convert repo to JSON" or "Generate code instructions"
     ↓
-repo-json-generator is triggered
+generator is triggered
     ↓
 Generates JSON structured template
     ↓
@@ -88,7 +135,7 @@ Pass JSON to AI agent for execution
 ```
 User says: "Convert entire project to JSON" or "Generate batch JSON"
     ↓
-repo-json-generator detects large codebase (>50 files)
+generator detects large codebase (>50 files)
     ↓
 Automatically splits into batches:
     ├─ Batch 1: Configuration files (*.json, *.yaml, *.toml)
@@ -102,7 +149,7 @@ Each batch sent to AI agent sequentially
 ```
 User says: "只更新改动的文件" or "Sync only changed files"
     ↓
-repo-json-generator uses sync command with specific commit
+generator uses sync command with specific commit
     ├─ Get changed files from commit
     └─ Generate JSON for only modified files
     ↓
@@ -115,7 +162,7 @@ Send to AI agent
 
 ## Overview
 
-This skill (`repo-json-generator`) **works together with** `miaoda-app-builder` in a **two-step workflow**:
+This skill (`generator`) **works together with** `miaoda-app-builder` in a **two-step workflow**:
 
 ```
 ┌─────────────────────┐         ┌──────────────────────┐
@@ -148,7 +195,7 @@ User Request
     ↓
 "Sync code from GitHub" / "Update with latest code"
     ↓
-Step 1: repo-json-generator
+Step 1: generator
     ├─ Clone repository from Git
     ├─ Read all code files
     ├─ Generate structured JSON instructions
@@ -169,7 +216,7 @@ Complete! Code synced to Miaoda platform
 ```
 User says: "用秒哒更新代码" or "Sync code from GitHub"
     ↓
-repo-json-generator is triggered
+generator is triggered
     ↓
 Generates JSON structured template
     ↓
@@ -180,7 +227,7 @@ Pass JSON to miaoda-app-builder for execution
 ```
 User says: "同步整个项目代码" or "Update entire project"
     ↓
-repo-json-generator detects large codebase (>50 files)
+generator detects large codebase (>50 files)
     ↓
 Automatically splits into batches:
     ├─ Batch 1: Configuration files (*.json, *.yaml, *.toml)
@@ -194,7 +241,7 @@ Each batch sent to miaoda-app-builder sequentially
 ```
 User says: "只更新改动的文件" or "Sync only changed files"
     ↓
-repo-json-generator uses sync command with commit filter
+generator uses sync command with commit filter
     ├─ Find specific commit with changed files
     └─ Generate JSON for only those files
     ↓
@@ -207,7 +254,7 @@ Send to miaoda-app-builder
 
 ## Standard Template
 
-When `repo-json-generator` processes code from a Git repository, it generates the following JSON structure:
+When `generator` processes code from a Git repository, it generates the following JSON structure:
 
 ```
 {
@@ -351,7 +398,7 @@ When this tool runs, it temporarily clones repositories to process code. All dir
 
 ## User Commands
 
-When users say any of the following, trigger `repo-json-generator`:
+When users say any of the following, trigger `generator`:
 
 ### Chinese Commands
 - "生成 JSON 指令"
@@ -380,8 +427,10 @@ When users say any of the following, trigger `repo-json-generator`:
 ```bash
 # Step 1: Read this SKILL.md file to understand the tool's capabilities
 # Step 2: Check command-line help for available options and parameters
-python3 scripts/repo_json_generator.py --help
+python3 scripts/generator.py --help
 ```
+
+**Version 3.0.0 Note**: The tool now uses a modular architecture. All functionality remains the same, but the codebase is better organized for maintenance and extension.
 
 Review the help output to understand:
 - Available subcommands (`sync`, `info`)
@@ -394,7 +443,7 @@ Review the help output to understand:
 ```
 User: "Generate JSON from https://github.com/user/repo"
     ↓
-repo-json-generator extracts:
+generator extracts:
   - repo_url: https://github.com/user/repo
   - commit: (latest or specified)
 ```
@@ -403,7 +452,7 @@ repo-json-generator extracts:
 
 ```
 # Execute generation command
-python3 scripts/repo_json_generator.py sync \
+python3 scripts/generator.py sync \
   --repo https://github.com/user/repo \
   --commit abc123def456
 ```
@@ -470,7 +519,7 @@ The `info` command provides detailed commit information including:
 
 ```bash
 # Get specific commit information
-python3 scripts/repo_json_generator.py info \
+python3 scripts/generator.py info \
   --repo https://github.com/user/repo \
   --commit abc123def456
 ```
@@ -492,7 +541,7 @@ python3 scripts/repo_json_generator.py info \
 
 ```bash
 # Save full formatted output (summary + JSON) to file
-python3 scripts/repo_json_generator.py info \
+python3 scripts/generator.py info \
   --repo https://github.com/user/repo \
   --commit abc123def456 \
   --output changes.json
@@ -505,7 +554,7 @@ python3 scripts/repo_json_generator.py info \
 
 ```bash
 # Save pure JSON to file (terminal still shows summary)
-python3 scripts/repo_json_generator.py info \
+python3 scripts/generator.py info \
   --repo https://github.com/user/repo \
   --commit abc123def456 \
   --output changes.json \
@@ -519,7 +568,7 @@ python3 scripts/repo_json_generator.py info \
 
 ```bash
 # Only include TypeScript and JavaScript files
-python3 scripts/repo_json_generator.py info \
+python3 scripts/generator.py info \
   --repo https://github.com/user/repo \
   --commit abc123def456 \
   --filter "*.ts,*.tsx,*.js" \
@@ -533,7 +582,7 @@ python3 scripts/repo_json_generator.py info \
 
 ```bash
 # Exclude documentation and test files
-python3 scripts/repo_json_generator.py info \
+python3 scripts/generator.py info \
   --repo https://github.com/user/repo \
   --commit abc123def456 \
   --exclude "*.md,*.txt,**/test/**,**/spec/**" \
@@ -547,7 +596,7 @@ python3 scripts/repo_json_generator.py info \
 
 ```bash
 # Include Python files but exclude test files
-python3 scripts/repo_json_generator.py info \
+python3 scripts/generator.py info \
   --repo https://github.com/user/repo \
   --commit abc123def456 \
   --filter "*.py" \
@@ -633,7 +682,7 @@ The `--filter` and `--exclude` parameters support various pattern formats:
 
 ## User Commands
 
-When users say any of the following, trigger `repo-json-generator`:
+When users say any of the following, trigger `generator`:
 
 ### Chinese Commands
 - "用秒哒更新代码"
@@ -660,7 +709,7 @@ When users say any of the following, trigger `repo-json-generator`:
 ```
 User: "用秒哒更新代码，仓库地址是 https://github.com/user/repo"
     ↓
-repo-json-generator extracts:
+generator extracts:
   - repo_url: https://github.com/user/repo
   - app_id: (from current context)
   - context_id: (from current context)
@@ -670,7 +719,7 @@ repo-json-generator extracts:
 
 ```bash
 # Execute generation command
-python3 scripts/repo_json_generator.py sync \
+python3 scripts/generator.py sync \
   --repo https://github.com/user/repo \
   --commit abc123def456
 ```
@@ -714,7 +763,7 @@ python3 scripts/miaoda_api.py chat \
 
 ## Automatic Splitting
 
-When codebase exceeds thresholds, `repo-json-generator` automatically suggests batch processing:
+When codebase exceeds thresholds, `generator` automatically suggests batch processing:
 
 ### Split Criteria
 
@@ -728,7 +777,7 @@ When codebase exceeds thresholds, `repo-json-generator` automatically suggests b
 
 **Priority 1: Configuration Files** (Must sync first)
 ```bash
-python3 scripts/repo_json_generator.py sync \
+python3 scripts/generator.py sync \
   --repo <repo_url> \
   --filter "*.json,*.yaml,*.yml,*.toml,*.env,package.json,requirements.txt" \
   --max-files 20 \
@@ -737,7 +786,7 @@ python3 scripts/repo_json_generator.py sync \
 
 **Priority 2: Frontend Code**
 ```bash
-python3 scripts/repo_json_generator.py sync \
+python3 scripts/generator.py sync \
   --repo <repo_url> \
   --filter "src/*.vue,src/*.js,src/*.jsx,src/*.ts,src/*.tsx,src/*.css,src/*.scss,src/*.html" \
   --max-files 30 \
@@ -746,7 +795,7 @@ python3 scripts/repo_json_generator.py sync \
 
 **Priority 3: Backend Code**
 ```bash
-python3 scripts/repo_json_generator.py sync \
+python3 scripts/generator.py sync \
   --repo <repo_url> \
   --filter "api/*.py,models/*.py,controllers/*.py,services/*.py,utils/*.py" \
   --max-files 30 \
@@ -755,7 +804,7 @@ python3 scripts/repo_json_generator.py sync \
 
 **Priority 4: Documentation & Others**
 ```bash
-python3 scripts/repo_json_generator.py sync \
+python3 scripts/generator.py sync \
   --repo <repo_url> \
   --filter "*.md,*.txt,README*,docs/*" \
   --max-files 10 \
@@ -778,11 +827,11 @@ python3 scripts/repo_json_generator.py sync \
 
 ```bash
 # Step 0: Check help to understand available options
-python3 scripts/repo_json_generator.py --help
+python3 scripts/generator.py --help
 
-# Step 1: Use repo-json-generator to fetch code
+# Step 1: Use generator to fetch code
 export GITHUB_TOKEN="ghp_your_token"
-python3 scripts/repo_json_generator.py sync \
+python3 scripts/generator.py sync \
   --repo https://github.com/username/my-project \
   --commit abc123def456
 
@@ -799,10 +848,10 @@ python3 scripts/repo_json_generator.py sync \
 
 ```bash
 # Step 0: Check help first
-python3 scripts/repo_json_generator.py --help
+python3 scripts/generator.py --help
 
 # Batch 1: Configuration
-python3 scripts/repo_json_generator.py sync \
+python3 scripts/generator.py sync \
   --repo https://github.com/username/large-project \
   --filter "*.json,*.yaml,*.toml,*.env" \
   --max-files 20 \
@@ -812,7 +861,7 @@ python3 scripts/repo_json_generator.py sync \
 # Process batch1.json with your AI system
 
 # Wait for completion, then Batch 2: Frontend
-python3 scripts/repo_json_generator.py sync \
+python3 scripts/generator.py sync \
   --repo https://github.com/username/large-project \
   --filter "src/*.vue,src/*.js,src/*.css" \
   --max-files 30 \
@@ -822,7 +871,7 @@ python3 scripts/repo_json_generator.py sync \
 # Process batch2.json with your AI system
 
 # Batch 3: Backend
-python3 scripts/repo_json_generator.py sync \
+python3 scripts/generator.py sync \
   --repo https://github.com/username/large-project \
   --filter "api/*.py,models/*.py" \
   --max-files 30 \
@@ -915,9 +964,9 @@ For independent batches, you can prepare all JSON files first, then send sequent
 
 ```bash
 # Prepare all batches
-python3 scripts/repo_json_generator.py sync --repo <url> --filter "*.json" --output batch1.json
-python3 scripts/repo_json_generator.py sync --repo <url> --filter "src/*.vue" --output batch2.json
-python3 scripts/repo_json_generator.py sync --repo <url> --filter "api/*.py" --output batch3.json
+python3 scripts/generator.py sync --repo <url> --filter "*.json" --output batch1.json
+python3 scripts/generator.py sync --repo <url> --filter "src/*.vue" --output batch2.json
+python3 scripts/generator.py sync --repo <url> --filter "api/*.py" --output batch3.json
 
 # Send to AI agent one by one
 # (Must wait for each to complete before sending next)
