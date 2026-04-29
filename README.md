@@ -201,6 +201,8 @@ python3 scripts/repo_json_generator.py info \
 - `--repo`: GitHub repository URL (required)
 - `--branch`: Branch name (default: main, used when --commit is not specified)
 - `--commit`: Specific commit hash (optional, overrides branch)
+- `--filter`: Specify file patterns to include (whitelist), supports: `*.py,*.md` or `src/*.py` etc.
+- `--exclude`: Specify file patterns to exclude (blacklist), supports: `*.md,*.txt` etc.
 - `--output`: Save output to file instead of printing to terminal
 - `--no-instructions`: Output only pure JSON without formatted instruction text
 
@@ -209,6 +211,28 @@ python3 scripts/repo_json_generator.py info \
 - **With `--output`**: Saves full formatted output to file, terminal shows summary
 - **With `--output` + `--no-instructions`**: Saves pure JSON to file, terminal shows summary
 - **Without `--output`**: Terminal shows summary only, no file saved
+
+**Filter Examples:**
+```bash
+# Only include TypeScript and JavaScript files
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123 \
+  --filter "*.ts,*.tsx,*.js"
+
+# Exclude documentation and test files
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123 \
+  --exclude "*.md,*.txt,**/test/**,**/spec/**"
+
+# Combine include and exclude filters
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123 \
+  --filter "*.py" \
+  --exclude "*.test.py,*.spec.py"
+```
 
 ---
 
@@ -286,6 +310,8 @@ python3 scripts/repo_json_generator.py info [options]
 **Optional:**
 - `--branch BRANCH`: Branch name (default: main, used when --commit is not specified)
 - `--commit COMMIT`: Specific commit hash (optional, overrides branch)
+- `--filter PATTERN`: File pattern filter to include (whitelist), e.g., "*.py,*.js" or "src/*.py"
+- `--exclude PATTERN`: File pattern filter to exclude (blacklist), e.g., "*.md,*.txt"
 - `--output FILE`: Save output to file
 - `--no-instructions`: Output only pure JSON without formatted text
 
@@ -298,9 +324,6 @@ python3 scripts/repo_json_generator.py info [options]
 **Examples:**
 ```bash
 # Get latest commit from default branch
-python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo
-
-# Get specific commit information
 python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123
 
 # Get full changes with complete file content (saves to file)
@@ -308,6 +331,15 @@ python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo 
 
 # Get full changes in pure JSON format (terminal still shows summary)
 python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123 --output changes.json --no-instructions
+
+# Only include specific file types
+python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123 --filter "*.py,*.js" --output changes.json
+
+# Exclude documentation files
+python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123 --exclude "*.md,*.txt" --output changes.json
+
+# Combine include and exclude filters
+python3 scripts/repo_json_generator.py info --repo https://github.com/user/repo --commit abc123 --filter "*.py" --exclude "*.test.py" --output changes.json
 ```
 
 **JSON Output Structure:**
@@ -474,4 +506,4 @@ A versatile tool for generating structured code instructions for AI agents and a
 ---
 
 **Last Updated**: 2026-04-29  
-**Version**: 2.4.0
+**Version**: 2.5.0

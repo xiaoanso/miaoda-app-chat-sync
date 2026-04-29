@@ -10,11 +10,12 @@ Convert Git repository code to structured JSON instructions for AI agents and au
 
 This tool fetches code from Git repositories (GitHub, GitLab, Bitbucket, etc.) and generates **structured JSON instructions** that can be consumed by any AI agent or automation system for accurate code processing and updates.
 
-**Latest Features (v2.4.0):**
+**Latest Features (v2.5.0):**
 - ✅ `info` command now includes complete file content in JSON output
 - ✅ Unified `--no-instructions` parameter across all commands
 - ✅ Consistent terminal output - always shows summary information
 - ✅ Flexible file output - full formatted or pure JSON format
+- ✅ **NEW**: `info` command supports `--filter` and `--exclude` parameters for file filtering
 
 ---
 
@@ -489,7 +490,7 @@ python3 scripts/repo_json_generator.py info \
 
 ### Save to File
 
-```
+```bash
 # Save full formatted output (summary + JSON) to file
 python3 scripts/repo_json_generator.py info \
   --repo https://github.com/user/repo \
@@ -502,7 +503,7 @@ python3 scripts/repo_json_generator.py info \
 
 ### Save Pure JSON
 
-```
+```bash
 # Save pure JSON to file (terminal still shows summary)
 python3 scripts/repo_json_generator.py info \
   --repo https://github.com/user/repo \
@@ -513,6 +514,49 @@ python3 scripts/repo_json_generator.py info \
 
 - **File**: Contains pure JSON only
 - **Terminal**: Shows summary information
+
+### Filter Files (Include Only)
+
+```bash
+# Only include TypeScript and JavaScript files
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123def456 \
+  --filter "*.ts,*.tsx,*.js" \
+  --output changes.json
+```
+
+- **Effect**: Only files matching the patterns are included in the output
+- **Terminal**: Shows filtered file count and list
+
+### Exclude Files
+
+```bash
+# Exclude documentation and test files
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123def456 \
+  --exclude "*.md,*.txt,**/test/**,**/spec/**" \
+  --output changes.json
+```
+
+- **Effect**: Files matching the patterns are excluded from the output
+- **Terminal**: Shows ⏭️ indicator for filtered out files
+
+### Combine Include and Exclude Filters
+
+```bash
+# Include Python files but exclude test files
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123def456 \
+  --filter "*.py" \
+  --exclude "*.test.py,*.spec.py" \
+  --output changes.json
+```
+
+- **Effect**: First applies include filter, then applies exclude filter
+- **Use Case**: Focus on source code while excluding tests, mocks, etc.
 
 ## JSON Structure
 
@@ -566,6 +610,22 @@ The `info` command generates a comprehensive JSON structure:
 | `--output` + `--no-instructions` | Shows summary | Pure JSON only |
 
 **Key Point**: Terminal **always** displays summary information in all scenarios.
+
+## Filter Syntax
+
+The `--filter` and `--exclude` parameters support various pattern formats:
+
+| Pattern | Description | Example |
+|---------|-------------|---------|
+| `*.ext` | Match by extension | `*.py`, `*.js`, `*.md` |
+| `path/*` | Match all files in directory | `src/*`, `docs/*` |
+| `path/*.ext` | Match specific extension in directory | `src/*.py`, `test/*.js` |
+| Multiple patterns | Comma-separated | `*.py,*.js,*.ts` |
+
+**Filtering Priority:**
+1. Include filter (`--filter`) is applied first
+2. Exclude filter (`--exclude`) is applied second
+3. If both are specified, files must match include AND not match exclude
 
 ---
 

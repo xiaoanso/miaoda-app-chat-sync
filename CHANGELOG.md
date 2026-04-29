@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-04-29
+
+### Added
+- **New**: Added `--filter` and `--exclude` parameters to `info` command
+  - `--filter`: Specify file patterns to include (whitelist), supports: `*.py,*.md` or `src/*.py` etc.
+  - `--exclude`: Specify file patterns to exclude (blacklist), supports: `*.md,*.txt` etc.
+  - Filtered files are excluded from both JSON output and summary
+  - Console shows filtered out files with ⏭️ indicator
+  
+**Usage Example:**
+```bash
+# Only include TypeScript files
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123 \
+  --filter "*.ts,*.tsx" \
+  --output changes.json
+
+# Exclude documentation files
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123 \
+  --exclude "*.md,*.txt" \
+  --output changes.json
+
+# Combine filter and exclude
+python3 scripts/repo_json_generator.py info \
+  --repo https://github.com/user/repo \
+  --commit abc123 \
+  --filter "*.py" \
+  --exclude "*.test.py,*.spec.py" \
+  --output changes.json
+```
+
 ## [2.4.0] - 2026-04-29
 
 ### Added
