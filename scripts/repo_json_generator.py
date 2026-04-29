@@ -1052,51 +1052,49 @@ def cmd_info(args):
         
         generator = InstructionGenerator()
         
-        # Generate JSON output
-        if args.json_only:
-            output = json.dumps(info_data, ensure_ascii=False, indent=2)
-        else:
-            output = generator.generate_commit_full_changes(info_data)
+        # Always display summary in terminal
+        summary = info_data.get('summary', {})
+        files = info_data.get('files', [])
         
-        if args.output:
-            # Always save JSON to file
-            json_output = json.dumps(info_data, ensure_ascii=False, indent=2)
-            with open(args.output, 'w', encoding='utf-8') as f:
-                f.write(json_output)
-            
-            # Display summary from JSON data in terminal
-            summary = info_data.get('summary', {})
-            files = info_data.get('files', [])
-            
-            if summary:
-                total_files = summary.get('files_changed', len(files))
-                total_additions = summary.get('total_additions', 0)
-                total_deletions = summary.get('total_deletions', 0)
-                files_list = summary.get('files', files)
-            else:
-                total_files = len(files)
-                total_additions = sum(f.get('additions', 0) for f in files)
-                total_deletions = sum(f.get('deletions', 0) for f in files)
-                files_list = files
-            
-            print(f"\n📊 Summary:")
-            print(f"  Files Changed: {total_files}")
-            print(f"  Total Additions: +{total_additions}")
-            print(f"  Total Deletions: -{total_deletions}")
-            
-            print(f"\n📁 Changed Files ({total_files}):")
-            for file_info in files_list:
-                status = file_info.get('status', 'modified')
-                status_icon = {'added': '🆕 Added', 'deleted': '🗑️ Deleted', 'modified': '📝 Modified'}.get(status, '❓')
-                additions = file_info.get('additions', 0)
-                deletions = file_info.get('deletions', 0)
-                stats_str = f"+{additions}/-{deletions}" if additions or deletions else ""
-                print(f"  {status_icon}: {file_info['path']} ({stats_str})")
-            
-            print(f"\n   ✅ Full changes saved to: {args.output}")
+        if summary:
+            total_files = summary.get('files_changed', len(files))
+            total_additions = summary.get('total_additions', 0)
+            total_deletions = summary.get('total_deletions', 0)
+            files_list = summary.get('files', files)
         else:
-            # No output file specified, print to terminal
-            print(output)
+            total_files = len(files)
+            total_additions = sum(f.get('additions', 0) for f in files)
+            total_deletions = sum(f.get('deletions', 0) for f in files)
+            files_list = files
+        
+        print(f"\n📊 Summary:")
+        print(f"  Files Changed: {total_files}")
+        print(f"  Total Additions: +{total_additions}")
+        print(f"  Total Deletions: -{total_deletions}")
+        
+        print(f"\n📁 Changed Files ({total_files}):")
+        for file_info in files_list:
+            status = file_info.get('status', 'modified')
+            status_icon = {'added': '🆕 Added', 'deleted': '🗑️ Deleted', 'modified': '📝 Modified'}.get(status, '❓')
+            additions = file_info.get('additions', 0)
+            deletions = file_info.get('deletions', 0)
+            stats_str = f"+{additions}/-{deletions}" if additions or deletions else ""
+            print(f"  {status_icon}: {file_info['path']} ({stats_str})")
+        
+        # Handle file output
+        if args.output:
+            if args.no_instructions:
+                # --output + --no-instructions: save pure JSON to file
+                json_output = json.dumps(info_data, ensure_ascii=False, indent=2)
+                with open(args.output, 'w', encoding='utf-8') as f:
+                    f.write(json_output)
+                print(f"\n   ✅ Pure JSON saved to: {args.output}")
+            else:
+                # --output only: save full formatted output to file
+                full_output = generator.generate_commit_full_changes(info_data)
+                with open(args.output, 'w', encoding='utf-8') as f:
+                    f.write(full_output)
+                print(f"\n   ✅ Full changes saved to: {args.output}")
         
     except Exception as e:
         print(f"\n❌ Error: {str(e)}", file=sys.stderr)
@@ -1135,7 +1133,7 @@ Parameter Description:
 Requirement 2: Get detailed commit information
 ================================================================
 python3 repo_json_generator.py info --repo URL --commit abc123
-python3 repo_json_generator.py info --repo URL --commit abc123 --json-only
+python3 repo_json_generator.py info --repo URL --commit abc123 --no-instructions
 python3 repo_json_generator.py info --repo URL --commit abc123 --output info.json
 
 Parameter Description:
@@ -1143,7 +1141,7 @@ Parameter Description:
   --branch       Branch name (default: main)
   --commit       Specific commit hash (required)
   --output       Save output to file instead of printing to terminal
-  --json-only    Output only pure JSON without formatted instruction text
+  --no-instructions  Output only pure JSON without formatted instruction text
 """
     )
     
@@ -1174,7 +1172,7 @@ Parameter Description:
     p.add_argument('--branch', default='main', help='Branch name (default: main)')
     p.add_argument('--commit', required=True, help='Specific commit hash (required)')
     p.add_argument('--output', help='Output to file instead of stdout')
-    p.add_argument('--json-only', action='store_true', help='Output only JSON')
+    p.add_argument('--no-instructions', action='store_true', help='Output only JSON')
     p.set_defaults(func=cmd_info)
     
     return parser
