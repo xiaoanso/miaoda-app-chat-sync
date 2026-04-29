@@ -5,11 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2026-04-28
+## [2.0.0] - 2026-04-29
 
 ### Changed
-- 更新项目 slug 为 miaoda-app-chat-sync
-- 优化项目配置和元数据
+- **BREAKING**: Renamed project from "GitHub Code Sync" to "Repo JSON Generator"
+- Updated all documentation to reflect platform-agnostic design
+- Modified script descriptions to emphasize JSON generation for AI agents
+- Removed Miaoda-specific references, now works with any AI agent or automation system
+- Updated CLI help text and examples
+
+### Added
+- Support for multiple Git platforms (GitHub, GitLab, Bitbucket, etc.)
+- Generic AI agent integration patterns
+- Platform-independent workflow examples
+
+## [1.1.0] - 2026-04-28
+
+### Added
+- Enhanced file filtering capabilities
+- Improved batch processing for large repositories
+- Structured JSON instruction generation
+
+### Fixed
+- Fixed temporary directory cleanup issues
+- Improved error handling for private repositories
 
 ## [1.0.1] - 2026-04-28
 

@@ -1,14 +1,106 @@
 ---
-name: miaoda-app-chat-sync
-description: Sync code from GitHub repository to Miaoda platform. Fetches code from GitHub, generates structured JSON instructions for accurate code updates via chat API. Works together with miaoda-app-builder skill for complete code sync workflow.
+name: repo-json-generator
+description: Convert Git repository code to structured JSON instructions for AI agents. Fetches code from Git repositories (GitHub, GitLab, etc.), generates structured JSON instructions for accurate code updates and processing. Platform-agnostic tool for AI agent workflows.
 metadata: { "openclaw": {"requires": { "bins": ["python3", "git"], "env":["GITHUB_TOKEN"]},"primaryEnv":"GITHUB_TOKEN" } }
 ---
 
-# GitHub Code Sync Skill
+# Repo JSON Generator
 
-Sync code from GitHub repositories to Miaoda platform projects.
+Convert Git repository code to structured JSON instructions for AI agents and automation tools.
 
-This skill fetches code from GitHub (using provided credentials and commit versions), then generates **structured JSON instructions** that can be sent to **miaoda-app-builder** skill's chat API for accurate code updates.
+This tool fetches code from Git repositories (GitHub, GitLab, Bitbucket, etc.) and generates **structured JSON instructions** that can be consumed by any AI agent or automation system for accurate code processing and updates.
+
+---
+
+# 🔄 AI Agent Integration Architecture
+
+## Overview
+
+This tool (`repo-json-generator`) generates structured JSON from Git repositories that can be consumed by **any AI agent or automation system**:
+
+```
+┌─────────────────────┐         ┌──────────────────────┐
+│  repo-json-         │  JSON   │  AI Agent /          │
+│  generator          │ ──────> │  Automation System   │
+│                     │  Data   │                      │
+│  1. Fetch from      │         │  2. Process Code     │
+│     Git Repo        │         │     Update Files     │
+│  3. Generate JSON   │         │  3. Execute Actions  │
+│     Instructions    │         │                      │
+└─────────────────────┘         └──────────────────────┘
+```
+
+## Why Structured JSON?
+
+| Aspect | Natural Language | Structured JSON |
+|--------|------------------|-----------------|
+| **Accuracy** | 70-80% | 90-95% |
+| **File Completeness** | May miss files | Guaranteed by JSON structure |
+| **Control** | Hard to verify | Easy to validate before processing |
+| **Batch Processing** | Difficult | Built-in support |
+| **Best For** | Simple queries | Full sync, large updates |
+
+## Integration Workflow
+
+### Standard Flow
+
+```
+User Request
+    ↓
+"Generate JSON from Git repo" / "Convert code to JSON"
+    ↓
+Step 1: repo-json-generator
+    ├─ Clone repository from Git
+    ├─ Read all code files
+    ├─ Generate structured JSON instructions
+    └─ Output: JSON data with file contents
+    ↓
+Step 2: Your AI Agent / System
+    ├─ Receive JSON instructions
+    ├─ Parse file list and contents
+    ├─ Create/overwrite each file
+    └─ Output: Updated file list for verification
+    ↓
+Complete! Code processed by AI agent
+```
+
+### Trigger Scenarios
+
+**Scenario 1: Direct Code Conversion**
+```
+User says: "Convert repo to JSON" or "Generate code instructions"
+    ↓
+repo-json-generator is triggered
+    ↓
+Generates JSON structured template
+    ↓
+Pass JSON to AI agent for execution
+```
+
+**Scenario 2: Large Codebase - Batch Processing**
+```
+User says: "Convert entire project to JSON" or "Generate batch JSON"
+    ↓
+repo-json-generator detects large codebase (>50 files)
+    ↓
+Automatically splits into batches:
+    ├─ Batch 1: Configuration files (*.json, *.yaml, *.toml)
+    ├─ Batch 2: Frontend code (src/*.vue, src/*.js)
+    └─ Batch 3: Backend code (api/*.py, models/*.py)
+    ↓
+Each batch sent to AI agent sequentially
+```
+
+**Scenario 3: Incremental Update**
+```
+User says: "Only changed files" or "Generate diff JSON"
+    ↓
+repo-json-generator uses diff command
+    ├─ Compare commits to find changed files
+    └─ Generate JSON for only modified files
+    ↓
+Send to AI agent
+```
 
 ---
 
@@ -16,15 +108,15 @@ This skill fetches code from GitHub (using provided credentials and commit versi
 
 ## Overview
 
-This skill (`miaoda-app-chat-sync`) **works together with** `miaoda-app-builder` in a **two-step workflow**:
+This skill (`repo-json-generator`) **works together with** `miaoda-app-builder` in a **two-step workflow**:
 
 ```
 ┌─────────────────────┐         ┌──────────────────────┐
-│  miaoda-app-        │  JSON   │  miaoda-app-         │
-│  chat-sync          │ ──────> │  builder             │
+│  repo-json-         │  JSON   │  miaoda-app-         │
+│  generator          │ ──────> │  builder             │
 │                     │  Code   │                      │
 │  1. Fetch from      │  Data   │  2. Update Code      │
-│     GitHub          │         │     via Chat API     │
+│     Git             │         │     via Chat API     │
 │  3. Generate JSON   │         │  3. Create/Overwrite │
 │     Instructions    │         │     Files            │
 └─────────────────────┘         └──────────────────────┘
@@ -49,8 +141,8 @@ User Request
     ↓
 "Sync code from GitHub" / "Update with latest code"
     ↓
-Step 1: miaoda-app-chat-sync
-    ├─ Clone repository from GitHub
+Step 1: repo-json-generator
+    ├─ Clone repository from Git
     ├─ Read all code files
     ├─ Generate structured JSON instructions
     └─ Output: JSON data with file contents
@@ -70,7 +162,7 @@ Complete! Code synced to Miaoda platform
 ```
 User says: "用秒哒更新代码" or "Sync code from GitHub"
     ↓
-miaoda-app-chat-sync is triggered
+repo-json-generator is triggered
     ↓
 Generates JSON structured template
     ↓
@@ -81,7 +173,7 @@ Pass JSON to miaoda-app-builder for execution
 ```
 User says: "同步整个项目代码" or "Update entire project"
     ↓
-miaoda-app-chat-sync detects large codebase (>50 files)
+repo-json-generator detects large codebase (>50 files)
     ↓
 Automatically splits into batches:
     ├─ Batch 1: Configuration files (*.json, *.yaml, *.toml)
@@ -95,7 +187,7 @@ Each batch sent to miaoda-app-builder sequentially
 ```
 User says: "只更新改动的文件" or "Sync only changed files"
     ↓
-miaoda-app-chat-sync uses diff command
+repo-json-generator uses diff command
     ├─ Compare commits to find changed files
     └─ Generate JSON for only modified files
     ↓
@@ -108,7 +200,7 @@ Send to miaoda-app-builder
 
 ## Standard Template
 
-When `miaoda-app-chat-sync` processes code from GitHub, it generates the following JSON structure:
+When `repo-json-generator` processes code from a Git repository, it generates the following JSON structure:
 
 ```json
 {
@@ -148,11 +240,11 @@ When `miaoda-app-chat-sync` processes code from GitHub, it generates the followi
 |-------|------|-------------|
 | `action` | String | Always "UPDATE_ALL_FILES" |
 | `description` | String | Human-readable instruction |
-| `source` | Object | GitHub source information for traceability |
+| `source` | Object | Git source information for traceability |
 | `source.repository` | String | Repository URL |
 | `source.branch` | String | Git branch name |
 | `source.commit` | String | Commit hash (8 chars) |
-| `rules` | Array | Execution rules that miaoda-app-builder must follow |
+| `rules` | Array | Execution rules that AI agent must follow |
 | `files` | Array | List of files to update |
 | `files[].path` | String | Relative file path |
 | `files[].action` | String | Always "CREATE_OR_OVERWRITE" |
@@ -190,11 +282,86 @@ For large projects, JSON is split into multiple batches:
 
 ---
 
+# How to Trigger Code Generation
+
+## User Commands
+
+When users say any of the following, trigger `repo-json-generator`:
+
+### Chinese Commands
+- "生成 JSON 指令"
+- "转换代码为 JSON"
+- "从 Git 仓库生成指令"
+- "批量生成代码指令"
+- "导出代码到 JSON"
+
+### English Commands
+- "Generate JSON instructions"
+- "Convert code to JSON"
+- "Generate from Git repository"
+- "Batch generate code instructions"
+- "Export code to JSON"
+
+## Execution Flow
+
+### Step 1: User Provides Repository URL
+
+```
+User: "Generate JSON from https://github.com/user/repo"
+    ↓
+repo-json-generator extracts:
+  - repo_url: https://github.com/user/repo
+  - commit: (latest or specified)
+```
+
+### Step 2: Fetch and Generate JSON
+
+```
+# Execute generation command
+python3 scripts/repo_json_generator.py sync \
+  --repo https://github.com/user/repo \
+  --commit abc123def456
+```
+
+Output: Structured JSON template
+
+### Step 3: Send to Your AI Agent
+
+```
+User/Agent sends to AI system:
+
+Please execute the following code update instructions:
+
+```json
+{
+  "action": "UPDATE_ALL_FILES",
+  "files": [...]
+}
+```
+
+Important rules:
+- Update every file in the files array
+- Match content exactly as specified in content field
+- Do not modify, alter, or skip any code
+- Output complete list of all updated files when done
+```
+
+### Step 4: AI Agent Executes
+
+```
+Your AI agent processes the JSON and:
+- Parses file list
+- Creates/overwrites files
+- Returns completion status
+```
+
+---
+
 # How to Trigger Code Sync
 
 ## User Commands
 
-When users say any of the following, trigger `miaoda-app-chat-sync`:
+When users say any of the following, trigger `repo-json-generator`:
 
 ### Chinese Commands
 - "用秒哒更新代码"
@@ -221,7 +388,7 @@ When users say any of the following, trigger `miaoda-app-chat-sync`:
 ```
 User: "用秒哒更新代码，仓库地址是 https://github.com/user/repo"
     ↓
-miaoda-app-chat-sync extracts:
+repo-json-generator extracts:
   - repo_url: https://github.com/user/repo
   - app_id: (from current context)
   - context_id: (from current context)
@@ -230,11 +397,10 @@ miaoda-app-chat-sync extracts:
 ### Step 2: Fetch and Generate JSON
 
 ```bash
-# Execute sync command
-python scripts/github_sync.py sync \
+# Execute generation command
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/user/repo \
-  --app-id <app_id> \
-  --context-id <context_id>
+  --commit abc123def456
 ```
 
 Output: Structured JSON template
@@ -264,7 +430,7 @@ Important rules:
 
 ```bash
 # miaoda-app-builder processes via chat API
-python scripts/miaoda_api.py chat \
+python3 scripts/miaoda_api.py chat \
   --text "<JSON instructions from Step 3>" \
   --app-id <app_id> \
   --context-id <context_id>
@@ -276,7 +442,7 @@ python scripts/miaoda_api.py chat \
 
 ## Automatic Splitting
 
-When codebase exceeds thresholds, `miaoda-app-chat-sync` automatically suggests batch processing:
+When codebase exceeds thresholds, `repo-json-generator` automatically suggests batch processing:
 
 ### Split Criteria
 
@@ -290,53 +456,45 @@ When codebase exceeds thresholds, `miaoda-app-chat-sync` automatically suggests 
 
 **Priority 1: Configuration Files** (Must sync first)
 ```bash
-python scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo <repo_url> \
   --filter "*.json,*.yaml,*.yml,*.toml,*.env,package.json,requirements.txt" \
   --max-files 20 \
-  --app-id <app_id> \
-  --context-id <context_id> \
   --output batch1_config.json
 ```
 
 **Priority 2: Frontend Code**
 ```bash
-python scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo <repo_url> \
   --filter "src/*.vue,src/*.js,src/*.jsx,src/*.ts,src/*.tsx,src/*.css,src/*.scss,src/*.html" \
   --max-files 30 \
-  --app-id <app_id> \
-  --context-id <context_id> \
   --output batch2_frontend.json
 ```
 
 **Priority 3: Backend Code**
 ```bash
-python scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo <repo_url> \
   --filter "api/*.py,models/*.py,controllers/*.py,services/*.py,utils/*.py" \
   --max-files 30 \
-  --app-id <app_id> \
-  --context-id <context_id> \
   --output batch3_backend.json
 ```
 
 **Priority 4: Documentation & Others**
 ```bash
-python scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo <repo_url> \
   --filter "*.md,*.txt,README*,docs/*" \
   --max-files 10 \
-  --app-id <app_id> \
-  --context-id <context_id> \
   --output batch4_docs.json
 ```
 
 ### Batch Execution Order
 
-1. **Send Batch 1** to miaoda-app-builder
+1. **Send Batch 1** to AI agent
 2. **Wait for completion** and verify file list
-3. **Send Batch 2** to miaoda-app-builder
+3. **Send Batch 2** to AI agent
 4. **Repeat** until all batches complete
 5. **Final verification** - check all files synced
 
@@ -344,33 +502,20 @@ python scripts/github_sync.py sync \
 
 # Workflow Examples
 
-## Example 1: Simple Sync (Public Repository)
+## Example 1: Simple JSON Generation (Public Repository)
 
 ```bash
-# Step 1: Use miaoda-app-chat-sync to fetch code
+# Step 1: Use repo-json-generator to fetch code
 export GITHUB_TOKEN="ghp_your_token"
-python scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/my-project \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw
+  --commit abc123def456
 
 # Step 2: Copy the JSON output
 # [Output contains structured JSON template]
 
-# Step 3: Send JSON to miaoda-app-builder
-python ../miaoda-app-builder/scripts/miaoda_api.py chat \
-  --text 'Please execute the following code update instructions:
-
-```json
-{JSON_OUTPUT_FROM_STEP_1}
-```
-
-Rules:
-- Update every file exactly as specified
-- Do not modify any code
-- Output complete list of updated files' \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw
+# Step 3: Send JSON to your AI agent
+# Pass the JSON to your AI agent/automation tool
 ```
 
 ---
@@ -379,56 +524,43 @@ Rules:
 
 ```bash
 # Batch 1: Configuration
-python scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/large-project \
   --filter "*.json,*.yaml,*.toml,*.env" \
   --max-files 20 \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw \
   --output batch1.json
 
-# Send to miaoda-app-builder
-python ../miaoda-app-builder/scripts/miaoda_api.py chat \
-  --text "Batch 1/3: Configuration files. $(cat batch1.json)" \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw
+# Send to AI agent
+# Process batch1.json with your AI system
 
 # Wait for completion, then Batch 2: Frontend
-python scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/large-project \
   --filter "src/*.vue,src/*.js,src/*.css" \
   --max-files 30 \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw \
   --output batch2.json
 
-python ../miaoda-app-builder/scripts/miaoda_api.py chat \
-  --text "Batch 2/3: Frontend code. $(cat batch2.json)" \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw
+# Send to AI agent
+# Process batch2.json with your AI system
 
 # Batch 3: Backend
-python scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/large-project \
   --filter "api/*.py,models/*.py" \
   --max-files 30 \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw \
   --output batch3.json
 
-python ../miaoda-app-builder/scripts/miaoda_api.py chat \
-  --text "Batch 3/3: Backend code. $(cat batch3.json)" \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw
+# Send to AI agent
+# Process batch3.json with your AI system
 ```
 
 ---
 
-# Integration with miaoda-app-builder
+# AI Agent Integration Guide
 
-## Chat Message Format
+## Message Format for AI Agents
 
-When sending JSON to miaoda-app-builder, use this format:
+When sending JSON to an AI agent, use this format:
 
 ```
 Please execute the following code update instructions:
@@ -456,15 +588,15 @@ After all files are updated, please output:
 - Any files that failed to update (if any)
 ```
 
-## Verification After Sync
+## Verification After Processing
 
-After miaoda-app-builder completes:
+After AI agent completes:
 
 1. **Check file count**: Compare with original JSON `files.length`
 2. **Verify file list**: All paths should match
-3. **Preview application**: `https://www.miaoda.cn/projects/{app_id}`
+3. **Review application**: Test the updated code
 4. **Test functionality**: Run key features
-5. **Publish if successful**: `python scripts/miaoda_api.py publish --app-id <id> --wait`
+5. **Deploy if successful**: Follow your deployment process
 
 ---
 
@@ -505,11 +637,11 @@ For independent batches, you can prepare all JSON files first, then send sequent
 
 ```bash
 # Prepare all batches
-python scripts/github_sync.py sync --repo <url> --filter "*.json" --output batch1.json
-python scripts/github_sync.py sync --repo <url> --filter "src/*.vue" --output batch2.json
-python scripts/github_sync.py sync --repo <url> --filter "api/*.py" --output batch3.json
+python3 scripts/repo_json_generator.py sync --repo <url> --filter "*.json" --output batch1.json
+python3 scripts/repo_json_generator.py sync --repo <url> --filter "src/*.vue" --output batch2.json
+python3 scripts/repo_json_generator.py sync --repo <url> --filter "api/*.py" --output batch3.json
 
-# Send to miaoda-app-builder one by one
+# Send to AI agent one by one
 # (Must wait for each to complete before sending next)
 ```
 

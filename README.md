@@ -1,17 +1,17 @@
-# GitHub Code Sync Skill for Miaoda
+# Repo JSON Generator
 
-> 🚀 Sync code from GitHub to Miaoda platform with structured JSON instructions
+> 🚀 Convert Git repository code to structured JSON instructions for AI agents
 
-## 🎯 What This Skill Does
+## 🎯 What This Tool Does
 
-This OpenClaw Skill fetches code from GitHub repositories and generates **structured JSON instructions** that you can send to Miaoda's chat API for accurate code updates.
+This command-line tool fetches code from Git repositories (GitHub, GitLab, etc.) and generates **structured JSON instructions** that you can send to any AI agent or automation tool for accurate code updates and processing.
 
 **Key Features:**
-- ✅ Fetch code from any GitHub repository (public or private)
+- ✅ Fetch code from any Git repository (public or private)
 - ✅ Support for specific commits and branches
 - ✅ Generate JSON structured instructions for maximum AI accuracy
 - ✅ File filtering and batching for large projects
-- ✅ Independent from miaoda-app-builder - works with any Miaoda setup
+- ✅ Platform-agnostic - works with any AI agent or system
 - ✅ Automatic cleanup of temporary files
 
 ---
@@ -35,51 +35,42 @@ This OpenClaw Skill fetches code from GitHub repositories and generates **struct
 git --version
 ```
 
-### 2. Set GitHub Token (for private repos)
+### 2. Set Git Token (for private repos)
 
 ```bash
+# For GitHub
 export GITHUB_TOKEN="ghp_your_personal_access_token"
+
+# For GitLab
+export GITLAB_TOKEN="glpat_your_personal_access_token"
 ```
 
-### 3. Get Miaoda App Info
+### 3. Generate JSON Instructions
 
 ```bash
-# List your apps
-python miaoda-app-builder/scripts/miaoda_api.py list-apps --brief
-
-# Get app detail with context ID
-python miaoda-app-builder/scripts/miaoda_api.py app-detail --app-id app-abc123xyz
-```
-
-### 4. Sync Code
-
-```bash
-python skill/scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/my-project \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw
+  --commit abc123def456
 ```
 
-### 5. Copy JSON to Miaoda Chat
+### 4. Use JSON Output with Your AI Agent
 
-The script will output formatted JSON instructions. Copy the JSON block and send it to Miaoda chat!
+The script will output formatted JSON instructions. Copy the JSON block and send it to your AI agent or automation tool!
 
 ---
 
 ## 📖 Usage Examples
 
-### Example 1: Sync Latest Code (Public Repository)
+### Example 1: Generate JSON from Latest Code (Public Repository)
 
 ```bash
-python skill/scripts/github_sync.py sync \
-  --repo https://github.com/username/my-project \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw
+python3 scripts/repo_json_generator.py sync \
+  --repo https://github.com/username/my-project
 ```
 
 **Output:**
 ```
-📦 GitHub Code Sync - Structured Update Instructions
+📦 Repo JSON Generator - Structured Update Instructions
 ═══════════════════════════════════════════════════════
 
 📋 Summary:
@@ -92,7 +83,7 @@ python skill/scripts/github_sync.py sync \
 
 ═══════════════════════════════════════════════════════
 
-📝 Copy the following JSON and send to Miaoda chat:
+📝 Copy the following JSON and send to AI Agent:
 
 ```json
 {
@@ -104,14 +95,12 @@ python skill/scripts/github_sync.py sync \
 
 ---
 
-### Example 2: Sync Specific Commit
+### Example 2: Generate JSON from Specific Commit
 
 ```bash
-python skill/scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/my-project \
-  --commit abc123def456 \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw
+  --commit abc123def456
 ```
 
 ---
@@ -121,10 +110,8 @@ python skill/scripts/github_sync.py sync \
 ```bash
 export GITHUB_TOKEN="ghp_your_token"
 
-python skill/scripts/github_sync.py sync \
-  --repo https://github.com/username/private-repo \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw
+python3 scripts/repo_json_generator.py sync \
+  --repo https://github.com/username/private-repo
 ```
 
 ---
@@ -132,58 +119,48 @@ python skill/scripts/github_sync.py sync \
 ### Example 4: Filter Files
 
 ```bash
-# Only sync Python and JavaScript files
-python skill/scripts/github_sync.py sync \
+# Only generate JSON for Python and JavaScript files
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/my-project \
-  --filter "*.py,*.js,*.html" \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw
+  --filter "*.py,*.js,*.html"
 ```
 
 ---
 
-### Example 5: Large Project (Batch Sync)
+### Example 5: Large Project (Batch JSON Generation)
 
 ```bash
 # Batch 1: Configuration files
-python skill/scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/my-project \
   --filter "*.json,*.yaml,*.toml" \
   --max-files 20 \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw \
   --output batch1_config.json
 
 # Batch 2: Frontend code
-python skill/scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/my-project \
   --filter "src/*.vue,src/*.js" \
   --max-files 30 \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw \
   --output batch2_frontend.json
 
 # Batch 3: Backend code
-python skill/scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/my-project \
   --filter "api/*.py" \
   --max-files 30 \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw \
   --output batch3_backend.json
 ```
 
-Then send each batch to Miaoda chat separately.
+Then send each batch JSON to your AI agent separately.
 
 ---
 
-### Example 6: Save to File
+### Example 6: Save JSON to File
 
 ```bash
-python skill/scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/my-project \
-  --app-id app-abc123xyz \
-  --context-id conv-def456uvw \
   --output update_instructions.json
 ```
 
@@ -192,7 +169,7 @@ python skill/scripts/github_sync.py sync \
 ### Example 7: View Repository Info
 
 ```bash
-python skill/scripts/github_sync.py info \
+python3 scripts/repo_json_generator.py info \
   --repo https://github.com/username/my-project \
   --branch main
 ```
@@ -202,7 +179,7 @@ python skill/scripts/github_sync.py info \
 ### Example 8: Compare Commits
 
 ```bash
-python skill/scripts/github_sync.py diff \
+python3 scripts/repo_json_generator.py diff \
   --repo https://github.com/username/my-project \
   --from abc123 \
   --to def456
@@ -217,31 +194,31 @@ python skill/scripts/github_sync.py diff \
    ↓
    git push origin main
 
-2. Generate Sync Instructions
+2. Generate JSON Instructions
    ↓
-   python skill/scripts/github_sync.py sync \
+   python3 scripts/repo_json_generator.py sync \
      --repo https://github.com/user/repo \
-     --app-id xxx --context-id yyy
+     --commit abc123
 
 3. Copy JSON Output
    ↓
    (Copy the JSON block from output)
 
-4. Send to Miaoda Chat
+4. Send to AI Agent
    ↓
-   (Paste JSON as message)
+   (Paste JSON as message to your AI agent/automation tool)
 
-5. AI Updates Files
+5. AI Agent Processes Files
    ↓
    (Wait for completion)
 
-6. Verify & Preview
+6. Verify Results
    ↓
-   https://www.miaoda.cn/projects/{app_id}
+   Check that all files were updated correctly
 
-7. Publish (if ready)
+7. Deploy/Publish (if ready)
    ↓
-   python miaoda-app-builder/scripts/miaoda_api.py publish --app-id xxx --wait
+   Follow your deployment process
 ```
 
 ---
@@ -250,21 +227,19 @@ python skill/scripts/github_sync.py diff \
 
 ### sync Command
 
-Fetch code and generate structured instructions.
+Fetch code and generate structured JSON instructions.
 
 ```bash
-python skill/scripts/github_sync.py sync [options]
+python3 scripts/repo_json_generator.py sync [options]
 ```
 
 **Required:**
-- `--repo REPO_URL`: GitHub repository URL
-- `--app-id APP_ID`: Miaoda application ID
-- `--context-id CONTEXT_ID`: Miaoda conversation ID
+- `--repo REPO_URL`: Git repository URL
 
 **Optional:**
 - `--branch BRANCH`: Git branch (default: main)
 - `--commit COMMIT`: Specific commit hash (overrides branch)
-- `--token TOKEN`: GitHub token (or use GITHUB_TOKEN env)
+- `--token TOKEN`: Git token (or use GITHUB_TOKEN env)
 - `--max-files N`: Max files to sync (default: 50)
 - `--filter PATTERN`: File filter (e.g., "*.py,*.js")
 - `--output FILE`: Save to file
@@ -277,7 +252,7 @@ python skill/scripts/github_sync.py sync [options]
 Show changed files between commits.
 
 ```bash
-python skill/scripts/github_sync.py diff \
+python3 scripts/repo_json_generator.py diff \
   --repo REPO_URL \
   --from COMMIT1 \
   --to COMMIT2
@@ -290,7 +265,7 @@ python skill/scripts/github_sync.py diff \
 Get repository information.
 
 ```bash
-python skill/scripts/github_sync.py info \
+python3 scripts/repo_json_generator.py info \
   --repo REPO_URL \
   --branch BRANCH
 ```
@@ -344,10 +319,9 @@ python skill/scripts/github_sync.py info \
 ### 4. Keep Records
 
 ```bash
-python skill/scripts/github_sync.py sync \
+python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/user/repo \
   --commit abc123 \
-  --app-id xxx --context-id yyy \
   --output sync_$(date +%Y%m%d_%H%M%S).json
 ```
 
@@ -386,13 +360,14 @@ python skill/scripts/github_sync.py sync \
 ## 📦 Project Structure
 
 ```
-skill/
-├── SKILL.md                    # Skill description
+repo-json-generator/
+├── README.md                   # This file
+├── SKILL.md                    # Skill description (for OpenClaw)
 ├── _meta.json                  # Metadata
 ├── scripts/
-│   └── github_sync.py          # Core sync script
+│   └── repo_json_generator.py  # Core generation script
 ├── requirements.txt            # Dependencies (none!)
-└── README.md                   # This file
+└── .gitignore                  # Git ignore rules
 ```
 
 ---
@@ -414,9 +389,9 @@ MIT
 
 ## 🙏 Credits
 
-Built for use with [Miaoda Platform](https://www.miaoda.cn)
+A versatile tool for generating structured code instructions for AI agents and automation systems.
 
 ---
 
-**Last Updated**: 2026-04-28  
-**Version**: 1.1.0
+**Last Updated**: 2026-04-29  
+**Version**: 2.0.0
