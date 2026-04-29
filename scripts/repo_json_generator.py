@@ -5,6 +5,14 @@ Repo JSON Generator - Git Repository to Structured JSON Converter
 Fetches code from Git repositories and generates structured JSON instructions
 for accurate code updates via AI agents and automation tools.
 
+## Temporary Clone Locations
+
+- **sync**: `/tmp/github-sync-<repo-name>/` (auto-cleaned after execution)
+- **info**: `/tmp/github-info-<random>/` (auto-deleted)
+- **diff**: `/tmp/github-diff-<random>/` (auto-deleted)
+
+All directories are automatically removed after script completion.
+
 Usage:
     python3 repo_json_generator.py sync --repo URL --commit COMMIT [options]
     python3 repo_json_generator.py diff --repo URL --from-commit COMMIT --to-commit COMMIT [options]
@@ -58,7 +66,11 @@ MAX_SINGLE_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 # ---------------------------------------------------------------------------
 
 class GitHubSync:
-    """Handles Git repository operations (GitHub, GitLab, etc.)"""
+    """Handles Git repository operations (GitHub, GitLab, etc.)
+    
+    Clone target directory is specified by caller (e.g., /tmp/github-sync-<repo-name>/).
+    Caller is responsible for cleanup after use.
+    """
     
     def __init__(self, token: str = None):
         self.token = token or os.environ.get('GITHUB_TOKEN')
@@ -901,7 +913,10 @@ def extract_app_id_from_repo(repo_url: str) -> str:
 
 
 def cmd_sync(args):
-    """[Req 1] Sync command - Get changed files and full content from a commit"""
+    """[Req 1] Sync command - Get changed files and full content from a commit
+    
+    Clones repo to: /tmp/github-sync-<repo-name>/ (auto-cleaned)
+    """
     if not args.app_id:
         args.app_id = extract_app_id_from_repo(args.repo)
         print(f"🎯 Auto-extracted App ID: {args.app_id}")
@@ -911,6 +926,8 @@ def cmd_sync(args):
     print(f"🎯 App ID: {args.app_id}")
     print(f"📌 Commit: {args.commit}")
     
+    # Temporary clone directory: /tmp/github-sync-<repo-name>/
+    # Auto-cleaned in finally block after execution
     temp_dir = '/tmp/github-sync-' + os.path.basename(args.repo).replace('.git', '')
     if os.path.exists(temp_dir):
         shutil.rmtree(temp_dir, ignore_errors=True)
@@ -970,9 +987,12 @@ def cmd_sync(args):
         sys.exit(1)
     
     finally:
-        print(f"\n🧹 Cleaning up...")
+        # Clean up temporary clone directory (/tmp/github-sync-<repo-name>/)
+        print(f"\n🧹 Cleaning up temporary files...")
+        print(f"   🗑️  Removing: {temp_dir}")
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir, ignore_errors=True)
+            print(f"   ✅ Cleanup complete")
 
 
 def cmd_diff(args):

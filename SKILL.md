@@ -282,6 +282,27 @@ For large projects, JSON is split into multiple batches:
 
 ---
 
+# 📁 Temporary Clone Locations
+
+When this tool runs, it temporarily clones repositories to process code. All directories are automatically cleaned up after execution.
+
+## Clone Paths
+
+| Command | Location | Notes |
+|---------|----------|-------|
+| `sync` | `/tmp/github-sync-<repo-name>/` | Persists during execution |
+| `info` | `/tmp/github-info-<random>/` | Auto-deleted immediately |
+| `diff` | `/tmp/github-diff-<random>/` | Auto-deleted immediately |
+
+## Quick Notes
+
+- **Auto-cleanup**: All temporary directories are removed after script finishes
+- **Inspect during run**: Check `/tmp/github-sync-*/` while script is executing
+- **Security**: No sensitive data remains on disk after execution
+- **Debugging**: Comment out `shutil.rmtree()` in code to prevent cleanup if needed
+
+---
+
 # How to Trigger Code Generation
 
 ## User Commands
@@ -303,6 +324,22 @@ When users say any of the following, trigger `repo-json-generator`:
 - "Export code to JSON"
 
 ## Execution Flow
+
+### Step 0: Read Documentation & Check Help
+
+**IMPORTANT**: Before using this tool, AI agents MUST read the documentation and check available options:
+
+```bash
+# Step 1: Read this SKILL.md file to understand the tool's capabilities
+# Step 2: Check command-line help for available options and parameters
+python3 scripts/repo_json_generator.py --help
+```
+
+Review the help output to understand:
+- Available subcommands (`sync`, `diff`, `info`)
+- Required parameters (`--repo`, `--commit`, etc.)
+- Optional parameters (`--filter`, `--exclude`, `--max-files`, `--output`)
+- Usage examples for different scenarios
 
 ### Step 1: User Provides Repository URL
 
@@ -505,6 +542,9 @@ python3 scripts/repo_json_generator.py sync \
 ## Example 1: Simple JSON Generation (Public Repository)
 
 ```bash
+# Step 0: Check help to understand available options
+python3 scripts/repo_json_generator.py --help
+
 # Step 1: Use repo-json-generator to fetch code
 export GITHUB_TOKEN="ghp_your_token"
 python3 scripts/repo_json_generator.py sync \
@@ -523,6 +563,9 @@ python3 scripts/repo_json_generator.py sync \
 ## Example 2: Large Project with Batches
 
 ```bash
+# Step 0: Check help first
+python3 scripts/repo_json_generator.py --help
+
 # Batch 1: Configuration
 python3 scripts/repo_json_generator.py sync \
   --repo https://github.com/username/large-project \
