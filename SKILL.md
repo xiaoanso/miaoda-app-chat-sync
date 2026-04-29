@@ -202,22 +202,26 @@ Send to miaoda-app-builder
 
 When `repo-json-generator` processes code from a Git repository, it generates the following JSON structure:
 
-```json
+```
 {
-  "action": "UPDATE_ALL_FILES",
-  "description": "Please update all files in the project according to the following JSON data",
+  "action": "CREATE_OR_UPDATE_FILES",
+  "description": "Please create or update all files in the project according to the following JSON data",
   "source": {
     "repository": "https://github.com/username/repo",
     "branch": "main",
     "commit": "abc123def456"
   },
   "rules": [
-    "1. You must update every file in the files array",
-    "2. File content must match the content field exactly - do not modify or alter any code",
-    "3. Create file if it doesn't exist, completely overwrite if it exists",
-    "4. Do not skip any file from the list",
-    "5. Preserve the exact file structure and paths",
-    "6. After updating, output a complete list of all updated files for verification"
+    "1. MUST update ALL files in the files array - no exceptions",
+    "2. MUST copy content EXACTLY as-is - no modifications, no reformatting, no 'improvements'",
+    "3. MUST preserve ALL whitespace, newlines, indentation, and comments exactly",
+    "4. MUST use EXACT file paths from path field - no path transformation",
+    "5. If file exists: overwrite completely (NOT merge)",
+    "6. If file does not exist: create it",
+    "7. After updating: output complete list of all updated files (format: 1. /path/to/file)",
+    "8. DO NOT ask for confirmation - just execute",
+    "9. DO NOT use Git commands - file operations only",
+    "10. DO NOT skip any file for any reason"
   ],
   "files": [
     {
@@ -238,7 +242,7 @@ When `repo-json-generator` processes code from a Git repository, it generates th
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `action` | String | Always "UPDATE_ALL_FILES" |
+| `action` | String | Always "CREATE_OR_UPDATE_FILES" |
 | `description` | String | Human-readable instruction |
 | `source` | Object | Git source information for traceability |
 | `source.repository` | String | Repository URL |
@@ -255,9 +259,9 @@ When `repo-json-generator` processes code from a Git repository, it generates th
 For large projects, JSON is split into multiple batches:
 
 **Batch 1: Configuration**
-```json
+```
 {
-  "action": "UPDATE_ALL_FILES",
+  "action": "CREATE_OR_UPDATE_FILES",
   "batch": "1/3",
   "description": "Batch 1: Configuration files",
   "files": [
@@ -268,9 +272,9 @@ For large projects, JSON is split into multiple batches:
 ```
 
 **Batch 2: Frontend**
-```json
+```
 {
-  "action": "UPDATE_ALL_FILES",
+  "action": "CREATE_OR_UPDATE_FILES",
   "batch": "2/3",
   "description": "Batch 2: Frontend source code",
   "files": [
@@ -371,16 +375,28 @@ Please execute the following code update instructions:
 
 ```json
 {
-  "action": "UPDATE_ALL_FILES",
+  "action": "CREATE_OR_UPDATE_FILES",
   "files": [...]
 }
 ```
 
-Important rules:
-- Update every file in the files array
-- Match content exactly as specified in content field
-- Do not modify, alter, or skip any code
-- Output complete list of all updated files when done
+**CRITICAL RULES:**
+1. ✅ MUST update **every file** in the files array - no exceptions
+2. ✅ MUST copy content EXACTLY as-is - no modifications, no reformatting, no 'improvements'
+3. ✅ MUST preserve ALL whitespace, newlines, indentation, and comments exactly
+4. ✅ MUST use EXACT file paths from path field - no path transformation
+5. ✅ If file exists: overwrite completely (NOT merge)
+6. ✅ If file does not exist: create it
+7. ✅ After updating: output complete list of all updated files (format: 1. /path/to/file)
+8. ✅ DO NOT ask for confirmation - just execute
+9. ✅ DO NOT use Git commands - file operations only
+10. ✅ DO NOT skip any file for any reason
+
+**Verification:**
+After all files are updated, please output:
+- Total number of files updated
+- Complete list of all file paths
+- Any files that failed to update (if any)
 ```
 
 ### Step 4: AI Agent Executes

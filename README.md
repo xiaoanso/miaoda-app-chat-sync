@@ -87,7 +87,7 @@ python3 scripts/repo_json_generator.py sync \
 
 ```json
 {
-  "action": "UPDATE_ALL_FILES",
+  "action": "CREATE_OR_UPDATE_FILES",
   "files": [...]
 }
 ```

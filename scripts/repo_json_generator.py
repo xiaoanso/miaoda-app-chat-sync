@@ -65,7 +65,7 @@ MAX_SINGLE_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 # Git Repository Operations
 # ---------------------------------------------------------------------------
 
-class GitHubSync:
+class RepoJSONGenerator:
     """Handles Git repository operations (GitHub, GitLab, etc.)
     
     Clone target directory is specified by caller (e.g., /tmp/github-sync-<repo-name>/).
@@ -752,20 +752,24 @@ class InstructionGenerator:
         )
         
         instruction_data = {
-            "action": "UPDATE_ALL_FILES",
-            "description": "Please update all files in the project according to the following JSON data",
+            "action": "CREATE_OR_UPDATE_FILES",
+            "description": "Please create or update all files in the project according to the following JSON data",
             "source": {
                 "repository": repo_url,
                 "branch": branch,
                 "commit": commit
             },
             "rules": [
-                "1. You must update every file in the files array",
-                "2. File content must match the content field exactly",
-                "3. Create file if it doesn't exist, completely overwrite if it exists",
-                "4. Do not skip any file from the list",
-                "5. Preserve the exact file structure and paths",
-                "6. After updating, output a complete list of all updated files"
+                "1. MUST update ALL files in the files array - no exceptions",
+                "2. MUST copy content EXACTLY as-is - no modifications, no reformatting, no 'improvements'",
+                "3. MUST preserve ALL whitespace, newlines, indentation, and comments exactly",
+                "4. MUST use EXACT file paths from path field - no path transformation",
+                "5. If file exists: overwrite completely (NOT merge)",
+                "6. If file does not exist: create it",
+                "7. After updating: output complete list of all updated files (format: 1. /path/to/file)",
+                "8. DO NOT ask for confirmation - just execute",
+                "9. DO NOT use Git commands - file operations only",
+                "10. DO NOT skip any file for any reason"
             ],
             "files": []
         }
@@ -808,7 +812,7 @@ class InstructionGenerator:
         sorted_files = sorted(files_content.keys())
         
         instruction_data = {
-            "action": "UPDATE_ALL_FILES",
+            "action": "CREATE_OR_UPDATE_FILES",
             "files": []
         }
         
@@ -937,7 +941,7 @@ def cmd_sync(args):
         print(f"\n📥 Step 1: Cloning repository...")
         print(f"   📁 Target: {temp_dir}")
         
-        gh = GitHubSync(args.token)
+        gh = RepoJSONGenerator(args.token)
         actual_commit = gh.clone_repo(args.repo, temp_dir, args.branch, args.commit)
         
         print(f"   ✅ Cloned successfully")
@@ -1010,7 +1014,7 @@ def cmd_diff(args):
         print(f"📊 Max Files: {args.max_files}")
     
     try:
-        gh = GitHubSync(args.token)
+        gh = RepoJSONGenerator(args.token)
         diff_data = gh.get_commit_diff(
             args.repo, 
             args.from_commit, 
@@ -1054,7 +1058,7 @@ def cmd_info(args):
         print(f"📌 Branch: {args.branch} (HEAD)")
     
     try:
-        gh = GitHubSync(args.token)
+        gh = RepoJSONGenerator(args.token)
         info_data = gh.get_repo_info(args.repo, commit=args.commit, branch=args.branch)
         
         generator = InstructionGenerator()
