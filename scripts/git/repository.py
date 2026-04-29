@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Tuple
 from core.temp_manager import temp_directory
 from core.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError, with_retry
 from core.security import SensitiveInfoHandler, SecureLogger
+from core.prompts import PromptConfig
 
 
 class RepoJSONGenerator:
@@ -343,7 +344,8 @@ class RepoJSONGenerator:
         return merged
 
     def get_commit_full_changes(self, repo_url: str, commit: str, branch: str = 'main', 
-                                file_filter: str = None, exclude_filter: str = None) -> Dict:
+                                file_filter: str = None, exclude_filter: str = None,
+                                command_type: str = 'sync') -> Dict:
         """
         Get full changes of a specific commit including file diffs.
         
@@ -353,6 +355,7 @@ class RepoJSONGenerator:
             branch: Branch name
             file_filter: Comma-separated file patterns to include
             exclude_filter: Comma-separated file patterns to exclude
+            command_type: Command type ('sync' or 'info') for prompt configuration
         
         Returns:
             Dict containing action, description, source, rules, and files
@@ -481,9 +484,12 @@ class RepoJSONGenerator:
                 
                 files_list.append(file_info)
             
+            # Get prompt configuration
+            prompt_config = PromptConfig.get_prompt(command_type)
+            
             return {
-                'action': 'CREATE_OR_UPDATE_FILES',
-                'description': 'Please create or update all files in the project according to the following JSON data',
+                'action': prompt_config['action'],
+                'description': prompt_config['description'],
                 'source': {
                     'repository': SensitiveInfoHandler.redact_url(repo_url),
                     'branch': branch,
@@ -503,18 +509,7 @@ class RepoJSONGenerator:
                         for f in files_list
                     ]
                 },
-                'rules': [
-                    '1. MUST update ALL files in the files array - no exceptions',
-                    '2. MUST copy content EXACTLY as-is - no modifications, no reformatting, no \'improvements\'',
-                    '3. MUST preserve ALL whitespace, newlines, indentation, and comments exactly',
-                    '4. MUST use EXACT file paths from path field - no path transformation',
-                    '5. If file exists: overwrite completely (NOT merge)',
-                    '6. If file does not exist: create it',
-                    '7. After updating: output complete list of all updated files (format: 1. /path/to/file)',
-                    '8. DO NOT ask for confirmation - just execute',
-                    '9. DO NOT use Git commands - file operations only',
-                    '10. DO NOT skip any file for any reason'
-                ],
+                'rules': prompt_config['rules'],
                 'files': files_list
             }
     

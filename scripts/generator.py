@@ -136,7 +136,8 @@ def cmd_sync(args, generator: RepoJSONGenerator):
             commit=commit,
             branch=branch,
             file_filter=args.filter,
-            exclude_filter=args.exclude
+            exclude_filter=args.exclude,
+            command_type='sync'
         )
         
         # Output result
@@ -187,7 +188,8 @@ def cmd_info(args, generator: RepoJSONGenerator):
             commit=commit,
             branch=branch,
             file_filter=args.filter,
-            exclude_filter=args.exclude
+            exclude_filter=args.exclude,
+            command_type='info'
         )
         
         # Display summary

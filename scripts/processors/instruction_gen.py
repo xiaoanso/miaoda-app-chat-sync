@@ -11,6 +11,7 @@ from typing import Dict
 from datetime import datetime
 
 from core.security import SensitiveInfoHandler
+from core.prompts import PromptConfig
 
 
 class InstructionGenerator:
@@ -19,8 +20,19 @@ class InstructionGenerator:
     @staticmethod
     def generate(files_content: Dict[str, str], 
                  repo_url: str, branch: str, commit: str,
-                 stats: Dict) -> str:
-        """Generate JSON structured instruction for file sync"""
+                 stats: Dict,
+                 command_type: str = 'sync') -> str:
+        """
+        Generate JSON structured instruction for file sync
+        
+        Args:
+            files_content: Dictionary of file paths and contents
+            repo_url: Repository URL
+            branch: Branch name
+            commit: Commit hash
+            stats: File statistics
+            command_type: Command type ('sync' or 'info') for prompt configuration
+        """
         priority_files = [
             'package.json', 'requirements.txt', 'pyproject.toml',
             'index.html', 'main.py', 'app.py'
@@ -31,26 +43,18 @@ class InstructionGenerator:
             key=lambda x: (0 if x in priority_files else 1, x)
         )
         
+        # Get prompt configuration
+        prompt_config = PromptsConfig.get_prompt(command_type)
+        
         instruction_data = {
-            "action": "CREATE_OR_UPDATE_FILES",
-            "description": "Please create or update all files in the project according to the following JSON data",
+            "action": prompt_config['action'],
+            "description": prompt_config['description'],
             "source": {
                 "repository": SensitiveInfoHandler.redact_url(repo_url),
                 "branch": branch,
                 "commit": commit[:8] if commit else 'N/A'
             },
-            "rules": [
-                "1. MUST update ALL files in the files array - no exceptions",
-                "2. MUST copy content EXACTLY as-is - no modifications, no reformatting, no 'improvements'",
-                "3. MUST preserve ALL whitespace, newlines, indentation, and comments exactly",
-                "4. MUST use EXACT file paths from path field - no path transformation",
-                "5. If file exists: overwrite completely (NOT merge)",
-                "6. If file does not exist: create it",
-                "7. After updating: output complete list of all updated files (format: 1. /path/to/file)",
-                "8. DO NOT ask for confirmation - just execute",
-                "9. DO NOT use Git commands - file operations only",
-                "10. DO NOT skip any file for any reason"
-            ],
+            "rules": prompt_config['rules'],
             "files": []
         }
         
