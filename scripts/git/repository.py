@@ -343,13 +343,13 @@ class RepoJSONGenerator:
         merged.append(current)
         return merged
 
-    def get_commit_full_changes(self, repo_url: str, commit: str, branch: str = 'main', 
+    def get_commit_full_changes(self, repo_url: str, commit: str, branch: str = 'master', 
                                 file_filter: str = None, exclude_filter: str = None,
                                 command_type: str = 'sync') -> Dict:
         """
-        Get full changes of a specific commit including file diffs.
+        Get full content of files changed in a specific commit.
         
-        Args:
+        Args: 
             repo_url: Git repository URL
             commit: Commit hash
             branch: Branch name
@@ -358,12 +358,11 @@ class RepoJSONGenerator:
             command_type: Command type ('sync' or 'info') for prompt configuration
         
         Returns:
-            Dict containing action, description, source, rules, and files
+            Dict containing action, description, source, rules, and files with full content
         """
-        with temp_directory(prefix='github-info-') as temp_dir:
+        with temp_directory(prefix='github-sync-') as temp_dir:
             # Clone and checkout the specific commit
             self.clone_repo(repo_url, temp_dir, branch='main', commit=commit)
-            env = self._get_git_env()
             
             # Get commit info
             format_str = '%H||%h||%s||%b||%an||%ae||%aI||%cn||%ce||%cI||%P'
@@ -384,105 +383,95 @@ class RepoJSONGenerator:
             
             parent_list = parents.split() if parents else []
             
-            # Get full diff
+            # Get changed files for this commit
             if parent_list:
+                # Normal commit: diff against parent
                 parent_commit = parent_list[0]
+                cmd = ['git', '-C', temp_dir, 'diff', '--name-status', parent_commit, commit]
             else:
-                # Initial commit has no parent, cannot diff
-                raise Exception("Cannot get changes for initial commit (no parent commit found)")
+                # Initial commit: show all files as added
+                cmd = ['git', '-C', temp_dir, 'diff', '--name-status', '--root', commit]
             
-            # Get unified diff with 0 context lines for precise change location
-            cmd = ['git', '-C', temp_dir, 'diff', '--unified=0', parent_commit, commit]
-            result = self._execute_git_command(cmd, cwd=temp_dir, timeout=120)
+            result = self._execute_git_command(cmd, cwd=temp_dir, timeout=30)
             
-            full_diff = result.stdout if result.returncode == 0 else ''
+            if result.returncode != 0:
+                raise Exception("Failed to get changed files")
             
-            # Parse diff into file-based structure
-            files_dict = {}
-            current_file = None
-            new_start = 0
+            # Parse changed files
+            changed_files = []
+            for line in result.stdout.strip().split('\n'):
+                if not line.strip():
+                    continue
+                parts = line.split('\t')
+                if len(parts) >= 2:
+                    status = parts[0].strip()  # A (added), M (modified), D (deleted)
+                    file_path = parts[1].strip()
+                    changed_files.append((status, file_path))
             
-            for line in full_diff.split('\n'):
-                if line.startswith('diff --git'):
-                    # Parse file path
-                    parts = line.split(' b/')
-                    if len(parts) == 2:
-                        file_path = parts[1]
-                        current_file = {
-                            'path': file_path,
-                            'status': 'modified',
-                            'additions': 0,
-                            'deletions': 0,
-                            'changes': []
-                        }
-                        files_dict[file_path] = current_file
-                    
-                elif line.startswith('new file mode'):
-                    if current_file:
-                        current_file['status'] = 'added'
-                        
-                elif line.startswith('deleted file mode'):
-                    if current_file:
-                        current_file['status'] = 'deleted'
-                        
-                elif line.startswith('@@'):
-                    # Parse hunk header: @@ -old_start,old_count +new_start,new_count @@
-                    import re
-                    match = re.search(r'\+(\d+)(?:,(\d+))?', line)
-                    if match and current_file:
-                        new_start = int(match.group(1))
-                        
-                elif line.startswith('+') and not line.startswith('+++') and current_file:
-                    current_file['additions'] += 1
-                    current_file['changes'].append({
-                        'type': 'addition',
-                        'line': new_start,
-                        'content': line[1:]
-                    })
-                    new_start += 1
-                    
-                elif line.startswith('-') and not line.startswith('---') and current_file:
-                    current_file['deletions'] += 1
-                    current_file['changes'].append({
-                        'type': 'deletion',
-                        'line': new_start if 'new_start' in dir() else 0,
-                        'content': line[1:]
-                    })
+            print(f"   📄 Files changed in commit: {len(changed_files)}")
             
-            # Apply file filters
+            # Convert to file list and apply filters
+            file_paths = [fp for status, fp in changed_files]
+            
             if file_filter or exclude_filter:
                 from processors.file_processor import FileProcessor
                 processor = FileProcessor(file_filter=file_filter, exclude_filter=exclude_filter)
                 
-                filtered_files = {}
-                for file_path, file_info in files_dict.items():
+                filtered_files = []
+                for file_path in file_paths:
                     if processor._should_include_file(file_path):
-                        filtered_files[file_path] = file_info
+                        filtered_files.append(file_path)
                     else:
                         print(f"   ⏭️  Filtered out: {file_path}")
-                files_dict = filtered_files
+                file_paths = filtered_files
+                print(f"   📄 Files after filtering: {len(file_paths)}")
             
-            # Merge consecutive changes and read full file content
+            # Read full content of each changed file
             files_list = []
-            for file_path, file_info in files_dict.items():
-                merged_changes = self._merge_consecutive_changes(file_info['changes'])
-                file_info['changes'] = merged_changes
+            skipped_binary = 0
+            skipped_deleted = 0
+            
+            for file_path in file_paths:
+                # Find the status for this file
+                status = next((s for s, fp in changed_files if fp == file_path), 'M')
                 
-                if file_info['status'] != 'deleted':
-                    full_file_path = os.path.join(temp_dir, file_path)
-                    try:
-                        if os.path.exists(full_file_path):
-                            with open(full_file_path, 'r', encoding='utf-8') as f:
-                                file_info['content'] = f.read()
-                        else:
-                            file_info['content'] = ''
-                    except Exception as e:
-                        print(f"   ⚠️  Error reading {file_path}: {str(e)}")
-                        file_info['content'] = ''
-                else:
-                    file_info['content'] = ''
+                # Skip deleted files
+                if status == 'D':
+                    skipped_deleted += 1
+                    continue
                 
-                files_list.append(file_info)
+                full_file_path = os.path.join(temp_dir, file_path)
+                try:
+                    if os.path.exists(full_file_path):
+                        # Check if file is binary by reading first few bytes
+                        with open(full_file_path, 'rb') as f:
+                            header = f.read(8192)  # Read first 8KB
+                        
+                        # Check for null bytes (indicator of binary file)
+                        if b'\x00' in header:
+                            skipped_binary += 1
+                            continue
+                        
+                        # Try to read as text
+                        with open(full_file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        
+                        files_list.append({
+                            'path': file_path,
+                            'action': 'CREATE_OR_OVERWRITE',
+                            'content': content
+                        })
+                    else:
+                        print(f"   ⚠️  File not found: {file_path}")
+                except UnicodeDecodeError:
+                    skipped_binary += 1
+                except Exception as e:
+                    print(f"   ⚠️  Error reading {file_path}: {str(e)}")
+            
+            if skipped_binary > 0:
+                print(f"   ⏭️  Skipped {skipped_binary} binary file(s)")
+            if skipped_deleted > 0:
+                print(f"   ⏭️  Skipped {skipped_deleted} deleted file(s)")
             
             # Get prompt configuration
             prompt_config = PromptConfig.get_prompt(command_type)
@@ -497,14 +486,12 @@ class RepoJSONGenerator:
                 },
                 'summary': {
                     'files_changed': len(files_list),
-                    'total_additions': sum(f.get('additions', 0) for f in files_list),
-                    'total_deletions': sum(f.get('deletions', 0) for f in files_list),
+                    'total_files': len(files_list),
                     'files': [
                         {
                             'path': f['path'],
-                            'status': f['status'],
-                            'additions': f.get('additions', 0),
-                            'deletions': f.get('deletions', 0)
+                            'action': 'CREATE_OR_OVERWRITE',
+                            'size': len(f.get('content', ''))
                         }
                         for f in files_list
                     ]

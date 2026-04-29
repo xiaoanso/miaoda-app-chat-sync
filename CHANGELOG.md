@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.0] - 2026-04-29
+
+### Changed
+- **Improved `sync` command logic**: Changed from getting all files to getting only changed files with full content
+  - Now retrieves complete file content for files **changed in the specific commit** (not all files)
+  - Uses `git diff --name-status` to identify changed files, then reads their full content
+  - Supports initial commits with `--root` parameter
+  - Simplified and more reliable file extraction logic
+- **Enhanced binary file handling**: Automatic detection and skipping of binary files
+  - Detects binary files by checking for null bytes in file header
+  - Gracefully skips non-UTF-8 encoded files
+  - Provides clear feedback on skipped files count
+
+### Fixed
+- **Initial commit support**: Added `--root` flag for diffing initial commits (no parent commit)
+- **Binary file errors**: Eliminated UTF-8 decode errors for image files and other binary assets
+- **File scope**: Fixed issue where all repository files were returned instead of only changed files
+
+---
+
 ## [3.0.0] - 2026-04-29
 
 ### Added
