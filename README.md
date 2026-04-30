@@ -267,6 +267,7 @@ Complete! Code processed by AI agent
 {
   "action": "CREATE_OR_UPDATE_FILES",
   "description": "Please create or update all files...",
+  "commit_message": "Initial commit",
   "source": {
     "repository": "https://github.com/username/repo",
     "branch": "main",
@@ -293,6 +294,16 @@ Complete! Code processed by AI agent
   ]
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action` | String | Always "CREATE_OR_UPDATE_FILES" |
+| `description` | String | Human-readable instruction |
+| `commit_message` | String | The commit message (subject + body) from the Git commit |
+| `source` | Object | Git source information for traceability |
+| `summary` | Object | Summary of changes |
+| `rules` | Array | Instructions for AI agent |
+| `files` | Array | List of files to create or update |
 
 ### Integration with Miaoda Platform
 

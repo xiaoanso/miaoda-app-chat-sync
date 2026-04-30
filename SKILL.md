@@ -260,6 +260,7 @@ When `generator` processes code from a Git repository, it generates the followin
 {
   "action": "CREATE_OR_UPDATE_FILES",
   "description": "Please create or update all files in the project according to the following JSON data",
+  "commit_message": "Add new feature: user authentication system\n\nImplemented JWT-based authentication with refresh tokens",
   "source": {
     "repository": "https://github.com/username/repo",
     "branch": "main",
@@ -323,6 +324,7 @@ When `generator` processes code from a Git repository, it generates the followin
 |-------|------|-------------|
 | `action` | String | Always "CREATE_OR_UPDATE_FILES" |
 | `description` | String | Human-readable instruction |
+| `commit_message` | String | The commit message (subject + body) from the Git commit |
 | `source` | Object | Git source information for traceability |
 | `source.repository` | String | Repository URL |
 | `source.branch` | String | Git branch name |

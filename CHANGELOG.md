@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.1] - 2026-04-30
 
+### Added
+- Added `commit_message` field to JSON output for both `sync` and `info` commands
+  - Contains the full commit message (subject + body) dynamically fetched from Git
+  - Positioned after `description` field in the JSON structure
+
 ### Security
 - Added security considerations documentation for generated JSON instructions
 - Clarified token scope and credential handling in metadata

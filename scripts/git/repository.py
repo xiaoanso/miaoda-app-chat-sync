@@ -270,6 +270,11 @@ class RepoJSONGenerator:
              committer_name, committer_email, committer_date, 
              parents) = lines
             
+            # Build commit message
+            commit_message = subject.strip()
+            if body and body.strip():
+                commit_message = commit_message + '\n\n' + body.strip()
+            
             parent_list = parents.split() if parents else []
             
             # Get detailed diff with line numbers
@@ -369,6 +374,7 @@ class RepoJSONGenerator:
             return {
                 'action': prompt_config['action'],
                 'description': prompt_config['description'],
+                'commit_message': commit_message,
                 'source': {
                     'repository': SensitiveInfoHandler.redact_url(repo_url),
                     'branch': branch,
@@ -429,6 +435,11 @@ class RepoJSONGenerator:
              author_name, author_email, author_date,
              committer_name, committer_email, committer_date, 
              parents) = lines
+            
+            # Build commit message
+            commit_message = subject.strip()
+            if body and body.strip():
+                commit_message = commit_message + '\n\n' + body.strip()
             
             parent_list = parents.split() if parents else []
             
@@ -528,6 +539,7 @@ class RepoJSONGenerator:
             return {
                 'action': prompt_config['action'],
                 'description': prompt_config['description'],
+                'commit_message': commit_message,
                 'source': {
                     'repository': SensitiveInfoHandler.redact_url(repo_url),
                     'branch': branch,
