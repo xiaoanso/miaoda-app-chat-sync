@@ -6,7 +6,7 @@
 Convert Git repository code to structured JSON instructions for AI agents and automation tools.
 
 **📖 中文版文档：[README_CN.md](README_CN.md)**
-
+**📖 中文使用文档：[USER_GUIDE.md](USER_GUIDE.md)**
 
 ## 📋 Overview
 

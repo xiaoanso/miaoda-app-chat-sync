@@ -9,6 +9,10 @@
 
 **Repo JSON Generator** 从 Git 仓库（GitHub、GitLab、Bitbucket 等）获取代码，并生成**结构化 JSON 指令**，可被任何 AI Agent 或自动化系统消费，以实现准确的代码处理和更新。
 
+**📖 英文版文档：[README.md](README.md)**
+**📖 中文使用文档：[USER_GUIDE.md](USER_GUIDE.md)**
+
+
 ### 核心特性
 
 - ✅ **高准确率**：结构化 JSON 准确率达 90-95%（自然语言仅 70-80%）
