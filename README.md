@@ -5,6 +5,9 @@
 
 Convert Git repository code to structured JSON instructions for AI agents and automation tools.
 
+**📖 中文版文档：[README_CN.md](README_CN.md)**
+
+
 ## 📋 Overview
 
 **Repo JSON Generator** fetches code from Git repositories (GitHub, GitLab, Bitbucket, etc.) and generates **structured JSON instructions** that can be consumed by any AI agent or automation system for accurate code processing and updates.
@@ -368,7 +371,7 @@ Complete! Code processed by AI agent
 
 ### JSON Template Format
 
-``json
+```json
 {
   "action": "CREATE_OR_UPDATE_FILES",
   "description": "Please create or update all files...",
@@ -531,6 +534,7 @@ Output: https://github.com/user/repo.git
 - UUID-based unique directory names
 
 **Temporary Locations:**
+
 | Platform | Location | Example |
 |----------|----------|---------|
 | macOS/Linux | `/tmp/github-<uuid>/` | `/tmp/github-a1b2c3d4/` |
