@@ -22,8 +22,3 @@ SKIP_DIRS = {
 }
 
 MAX_SINGLE_FILE_SIZE = 100 * 1024 * 1024  # 100MB
-
-# Streaming configuration
-DEFAULT_CHUNK_SIZE = 100  # Number of files per chunk in streaming mode
-MAX_JSON_CHUNK_SIZE = 10 * 1024 * 1024  # 10MB per JSON chunk
-MAX_MEMORY_SIZE = 500 * 1024 * 1024  # 500MB total for file storage
