@@ -50,6 +50,25 @@ class PromptConfig:
         ]
     }
     
+    # Full command prompts
+    FULL = {
+        "action": "CREATE_OR_UPDATE_FILES",
+        "description": "Please create or update all files in the project according to the following JSON data. This is a COMPLETE snapshot of the repository at this commit. IMPORTANT: Review all files before applying changes.",
+        "rules": [
+            "1. MUST update ALL files in the files array - no exceptions",
+            "2. MUST copy content EXACTLY as-is - no modifications, no reformatting, no 'improvements'",
+            "3. MUST preserve ALL whitespace, newlines, indentation, and comments exactly",
+            "4. MUST use EXACT file paths from path field - no path transformation",
+            "5. If file exists: overwrite completely (NOT merge)",
+            "6. If file does not exist: create it",
+            "7. After updating: output complete list of all updated files (format: 1. /path/to/file)",
+            "8. DO NOT ask for confirmation - just execute",
+            "9. DO NOT use Git commands - file operations only",
+            "10. DO NOT skip any file for any reason",
+            "NOTE: This is a COMPLETE repository snapshot. These rules are suggestions for accurate file synchronization. Always review changes before applying."
+        ]
+    }
+    
     @classmethod
     def get_sync_prompt(cls) -> Dict:
         """Get sync command prompt configuration"""
@@ -66,14 +85,15 @@ class PromptConfig:
         Get prompt configuration by command name
         
         Args:
-            command: Command name ('sync' or 'info')
+            command: Command name ('sync', 'info', or 'full')
             
         Returns:
             Dictionary containing action, description, and rules
         """
         prompts = {
             'sync': cls.SYNC,
-            'info': cls.INFO
+            'info': cls.INFO,
+            'full': cls.FULL
         }
         
         if command not in prompts:

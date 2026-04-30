@@ -70,7 +70,18 @@ python3 scripts/generator.py info \
   --commit abc123def456
 ```
 
-#### 3. Check Help
+#### 3. Get Complete Repository Snapshot (Full Command)
+
+```bash
+# Get complete file content of a specific commit
+python3 scripts/generator.py full \
+  --repo https://github.com/username/my-project \
+  --branch main \
+  --commit abc123def456 \
+  --max-files 100
+```
+
+#### 4. Check Help
 
 ```bash
 # View all available commands and options
@@ -187,6 +198,100 @@ python3 scripts/generator.py info \
 | `--output` + `--no-instructions` | Shows summary | Pure JSON only |
 
 **Note**: Terminal **always** displays summary information in all scenarios.
+
+---
+
+### `full` Command
+
+Get complete file content of all files in a specific commit version. This command retrieves the entire repository snapshot at a given commit (not just changed files).
+
+**Use Cases:**
+- Full repository backup at a specific version
+- Initialize a new project with complete codebase
+- Compare complete code differences between versions
+- Generate comprehensive documentation
+
+#### Required Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `--repo` | Git repository URL | `https://github.com/user/repo` |
+| `--branch` | Branch name (required) | `main`, `master`, `develop` |
+
+#### Optional Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--commit` | Specific commit hash | Latest commit |
+| `--filter` | Include only files matching patterns (e.g., "*.py,*.js") | All files |
+| `--exclude` | Exclude files matching patterns (e.g., "*.md,test/*") | None |
+| `--max-files` | Maximum number of files to process | `50` |
+| `--output` | Save output to file | Terminal only |
+| `--no-instructions` | Output pure JSON without formatted instructions | Formatted output |
+| `--verbose` | Enable verbose logging | Disabled |
+
+#### Examples
+
+```bash
+# Get full repository content at specific commit
+python3 scripts/generator.py full \
+  --repo https://github.com/user/repo \
+  --branch main \
+  --commit abc123def456
+
+# Get full content with file limit
+python3 scripts/generator.py full \
+  --repo https://github.com/user/repo \
+  --branch main \
+  --commit abc123def456 \
+  --max-files 100
+
+# Filter specific file types
+python3 scripts/generator.py full \
+  --repo https://github.com/user/repo \
+  --branch main \
+  --filter "*.py,*.js,*.ts" \
+  --exclude "test/*,*.md" \
+  --output full-snapshot.json
+
+# Save pure JSON to file
+python3 scripts/generator.py full \
+  --repo https://github.com/user/repo \
+  --branch main \
+  --commit abc123def456 \
+  --output full-snapshot.json \
+  --no-instructions
+```
+
+#### Output Format
+
+The `full` command outputs JSON with the same structure as `sync`, but includes ALL files from the commit:
+
+```json
+{
+  "action": "CREATE_OR_UPDATE_FILES",
+  "description": "Please create or update all files...",
+  "commit_message": "Complete repository snapshot at commit abc123",
+  "source": {
+    "repository": "https://github.com/user/repo",
+    "branch": "main",
+    "commit": "abc123def456"
+  },
+  "summary": {
+    "total_files_in_commit": 150,
+    "files_processed": 100,
+    "files": [...]
+  },
+  "rules": [...],
+  "files": [
+    {
+      "path": "src/main.py",
+      "action": "CREATE_OR_OVERWRITE",
+      "content": "# Complete file content..."
+    }
+  ]
+}
+```
 
 ---
 

@@ -49,6 +49,50 @@ class RepoJSONGenerator:
             # Don't expose token in environment for subprocess
         return env
     
+    def _get_commit_info(self, temp_dir: str, commit: str) -> Tuple[str, str, str]:
+        """
+        Extract commit information.
+        
+        Args:
+            temp_dir: Temporary directory containing the repository
+            commit: Commit hash
+            
+        Returns:
+            Tuple of (commit_hash, subject, body)
+        """
+        format_str = '%H||%h||%s||%b||%an||%ae||%aI||%cn||%ce||%cI||%P'
+        cmd = ['git', '-C', temp_dir, 'log', '-1', f'--format={format_str}', commit]
+        result = self._execute_git_command(cmd, cwd=temp_dir, timeout=30)
+        
+        if result.returncode != 0:
+            raise Exception(f"Failed to get commit info")
+        
+        lines = result.stdout.strip().split('||')
+        if len(lines) < 11:
+            raise Exception("Invalid git log output format")
+        
+        commit_hash = lines[0]
+        subject = lines[2]
+        body = lines[3]
+        
+        return commit_hash, subject, body
+    
+    def _build_commit_message(self, subject: str, body: str) -> str:
+        """
+        Build complete commit message.
+        
+        Args:
+            subject: Commit subject line
+            body: Commit body (may be empty)
+            
+        Returns:
+            Complete commit message
+        """
+        commit_message = subject.strip()
+        if body and body.strip():
+            commit_message = commit_message + '\n\n' + body.strip()
+        return commit_message
+    
     def _make_authenticated_url(self, repo_url: str) -> str:
         """Convert repo URL to use authentication if token is provided"""
         if not self.token or 'github.com' not in repo_url:
@@ -548,6 +592,129 @@ class RepoJSONGenerator:
                 'summary': {
                     'files_changed': len(files_list),
                     'total_files': len(files_list),
+                    'files': [
+                        {
+                            'path': f['path'],
+                            'action': 'CREATE_OR_OVERWRITE',
+                            'size': len(f.get('content', ''))
+                        }
+                        for f in files_list
+                    ]
+                },
+                'rules': prompt_config['rules'],
+                'files': files_list
+            }
+
+    def get_full_repo_content(self, repo_url: str, commit: str, branch: str = 'main',
+                              file_filter: str = None, exclude_filter: str = None,
+                              max_files: int = 50, command_type: str = 'full') -> Dict:
+        """
+        Get complete file content of all files in a specific commit.
+        
+        Args:
+            repo_url: Git repository URL
+            commit: Commit hash
+            branch: Branch name
+            file_filter: Comma-separated file patterns to include
+            exclude_filter: Comma-separated file patterns to exclude
+            max_files: Maximum number of files to process
+            command_type: Command type for prompt configuration
+        
+        Returns:
+            Dict containing action, description, commit_message, source, rules, and files
+        """
+        with temp_directory(prefix='github-full-') as temp_dir:
+            # Clone and checkout the specific commit
+            self.clone_repo(repo_url, temp_dir, branch=branch, commit=commit)
+            
+            # Get commit info using helper method
+            commit_hash, subject, body = self._get_commit_info(temp_dir, commit)
+            commit_message = self._build_commit_message(subject, body)
+            
+            # Get complete file tree
+            cmd = ['git', '-C', temp_dir, 'ls-tree', '-r', '--name-only', commit]
+            result = self._execute_git_command(cmd, cwd=temp_dir, timeout=30)
+            
+            if result.returncode != 0:
+                raise Exception("Failed to get file tree")
+            
+            all_files = [f for f in result.stdout.strip().split('\n') if f]
+            print(f"   📄 Total files in commit: {len(all_files)}")
+            
+            # Apply filters
+            from processors.file_processor import FileProcessor
+            processor = FileProcessor(max_files=max_files, 
+                                     file_filter=file_filter, 
+                                     exclude_filter=exclude_filter)
+            
+            filtered_files = []
+            for file_path in all_files:
+                if processor._should_include_file(file_path):
+                    filtered_files.append(file_path)
+                else:
+                    print(f"   ⏭️  Filtered out: {file_path}")
+            
+            print(f"   📄 Files after filtering: {len(filtered_files)}")
+            
+            # Limit to max_files
+            files_to_process = filtered_files[:max_files]
+            if len(filtered_files) > max_files:
+                print(f"   ⚠️  Limiting to first {max_files} files")
+            
+            # Read file contents
+            files_list = []
+            skipped_binary = 0
+            skipped_error = 0
+            
+            for file_path in files_to_process:
+                full_file_path = os.path.join(temp_dir, file_path)
+                try:
+                    if os.path.exists(full_file_path):
+                        # Check if file is binary
+                        with open(full_file_path, 'rb') as f:
+                            header = f.read(8192)
+                        
+                        if b'\x00' in header:
+                            skipped_binary += 1
+                            continue
+                        
+                        # Read as text
+                        with open(full_file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        
+                        files_list.append({
+                            'path': file_path,
+                            'action': 'CREATE_OR_OVERWRITE',
+                            'content': content
+                        })
+                    else:
+                        print(f"   ⚠️  File not found: {file_path}")
+                except UnicodeDecodeError:
+                    skipped_binary += 1
+                except Exception as e:
+                    skipped_error += 1
+                    print(f"   ⚠️  Error reading {file_path}: {str(e)}")
+            
+            if skipped_binary > 0:
+                print(f"   ⏭️  Skipped {skipped_binary} binary file(s)")
+            if skipped_error > 0:
+                print(f"   ⏭️  Skipped {skipped_error} file(s) due to errors")
+            
+            # Get prompt configuration
+            prompt_config = PromptConfig.get_prompt(command_type)
+            
+            return {
+                'action': prompt_config['action'],
+                'description': prompt_config['description'],
+                'commit_message': commit_message,
+                'source': {
+                    'repository': SensitiveInfoHandler.redact_url(repo_url),
+                    'branch': branch,
+                    'commit': commit_hash
+                },
+                'summary': {
+                    'total_files_in_commit': len(all_files),
+                    'files_processed': len(files_list),
                     'files': [
                         {
                             'path': f['path'],

@@ -330,19 +330,23 @@ When `generator` processes code from a Git repository, it generates the followin
 | `source.branch` | String | Git branch name |
 | `source.commit` | String | Commit hash |
 | `summary` | Object | Change statistics and file list |
-| `summary.files_changed` | Number | Total number of changed files |
-| `summary.total_additions` | Number | Total lines added |
-| `summary.total_deletions` | Number | Total lines deleted |
+| `summary.files_changed` | Number | Total number of changed files (sync/info commands) |
+| `summary.total_files_in_commit` | Number | Total files in the commit (full command only) |
+| `summary.files_processed` | Number | Number of files processed (full command only) |
+| `summary.total_additions` | Number | Total lines added (sync/info commands) |
+| `summary.total_deletions` | Number | Total lines deleted (sync/info commands) |
 | `summary.files` | Array | List of changed files with stats |
 | `rules` | Array | Execution rules that AI agent must follow |
 | `files` | Array | List of files to update |
 | `files[].path` | String | Relative file path |
-| `files[].status` | String | File status: "added", "modified", or "deleted" |
-| `files[].additions` | Number | Lines added in this file |
-| `files[].deletions` | Number | Lines deleted in this file |
-| `files[].changes` | Array | Detailed diff information (optional) |
+| `files[].status` | String | File status: "added", "modified", or "deleted" (sync/info) |
+| `files[].additions` | Number | Lines added in this file (sync/info) |
+| `files[].deletions` | Number | Lines deleted in this file (sync/info) |
+| `files[].changes` | Array | Detailed diff information (optional, sync/info) |
 | `files[].action` | String | Always "CREATE_OR_OVERWRITE" |
 | `files[].content` | String | Complete file content |
+
+**Note**: Fields marked with "(sync/info)" are only present in sync/info commands. Fields marked with "(full command only)" are only present in the full command.
 
 ## Batch Template Example
 
@@ -575,6 +579,8 @@ When users say any of the following, trigger `generator`:
 - "导出代码到 JSON"
 - "查看 commit 信息"
 - "获取代码变更"
+- "获取完整仓库内容"
+- "导出完整代码快照"
 
 ### English Commands
 - "Generate JSON instructions"
@@ -584,6 +590,8 @@ When users say any of the following, trigger `generator`:
 - "Export code to JSON"
 - "View commit info"
 - "Get code changes"
+- "Get full repository content"
+- "Export complete code snapshot"
 
 ## Execution Flow
 
@@ -778,7 +786,7 @@ python3 scripts/generator.py info \
 
 The `info` command generates a comprehensive JSON structure:
 
-```json
+``json
 {
   "action": "CREATE_OR_UPDATE_FILES",
   "description": "Please create or update all files...",

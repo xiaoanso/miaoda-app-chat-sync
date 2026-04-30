@@ -78,6 +78,21 @@ Usage:
     info_parser.add_argument('--no-instructions', action='store_true', help='Save pure JSON to file')
     info_parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
     
+    # full command
+    full_parser = subparsers.add_parser(
+        'full',
+        help='Get complete file content of a specific commit version'
+    )
+    full_parser.add_argument('--repo', required=True, help='Git repository URL')
+    full_parser.add_argument('--branch', required=True, help='Branch name (required)')
+    full_parser.add_argument('--commit', help='Specific commit hash (defaults to latest on branch)')
+    full_parser.add_argument('--filter', help='Include only files matching patterns (e.g., "*.py,*.js")')
+    full_parser.add_argument('--exclude', help='Exclude files matching patterns (e.g., "*.md,test/*")')
+    full_parser.add_argument('--max-files', type=int, default=50, help='Maximum number of files to process (default: 50)')
+    full_parser.add_argument('--output', help='Save output to file')
+    full_parser.add_argument('--no-instructions', action='store_true', help='Output pure JSON without formatted instructions')
+    full_parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    
     return parser
 
 
@@ -211,6 +226,70 @@ def cmd_info(args, generator: RepoJSONGenerator):
         sys.exit(1)
 
 
+def cmd_full(args, generator: RepoJSONGenerator):
+    """Handle full command"""
+    try:
+        branch = args.branch
+        
+        # If commit not specified, get latest commit
+        commit = args.commit
+        if not commit:
+            print(f"   ℹ️  No commit specified, using latest from branch '{branch}'")
+            # Clone to get latest commit
+            with tempfile.TemporaryDirectory(prefix='github-full-latest-') as temp_dir:
+                generator.clone_repo(args.repo, temp_dir, branch=branch)
+                # Get HEAD commit
+                import subprocess
+                result = subprocess.run(
+                    ['git', '-C', temp_dir, 'rev-parse', 'HEAD'],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    commit = result.stdout.strip()
+                else:
+                    raise Exception("Failed to get latest commit")
+        
+        print(f"   📦 Repository: {args.repo}")
+        print(f"   📌 Commit: {commit[:8]}")
+        print(f"   🌿 Branch: {branch}")
+        if args.filter:
+            print(f"   ✅ Filter: {args.filter}")
+        if args.exclude:
+            print(f"   ⛔ Exclude: {args.exclude}")
+        print(f"   📊 Max Files: {args.max_files}")
+        print()
+        
+        # Get full repository content
+        result = generator.get_full_repo_content(
+            repo_url=args.repo,
+            commit=commit,
+            branch=branch,
+            file_filter=args.filter,
+            exclude_filter=args.exclude,
+            max_files=args.max_files,
+            command_type='full'
+        )
+        
+        # Display summary
+        summary = result.get('summary', {})
+        print(f"📊 Summary:")
+        print(f"  Total Files in Commit: {summary.get('total_files_in_commit', 0)}")
+        print(f"  Files Processed: {summary.get('files_processed', 0)}")
+        print()
+        
+        print(f"📁 Processed Files ({summary.get('files_processed', 0)}):")
+        for file_info in summary.get('files', []):
+            print(f"  📝 {file_info['path']} ({file_info.get('size', 0)} chars)")
+        
+        # Output result
+        instruction_gen = InstructionGenerator()
+        instruction_gen.output_result(result, args.output, args.no_instructions)
+        
+    except Exception as e:
+        print(f"❌ Error: {str(e)}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     """Main entry point"""
     parser = create_parser()
@@ -229,6 +308,8 @@ def main():
         cmd_sync(args, generator)
     elif args.command == 'info':
         cmd_info(args, generator)
+    elif args.command == 'full':
+        cmd_full(args, generator)
     else:
         parser.print_help()
         sys.exit(1)

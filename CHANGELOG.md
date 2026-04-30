@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.2.1] - 2026-04-30
 
 ### Added
-- Added `commit_message` field to JSON output for both `sync` and `info` commands
+- **New `full` command**: Get complete file content of a specific commit version
+  - Retrieves all files in a commit (not just changed files)
+  - Supports same parameters as `sync` command (--filter, --exclude, --max-files, etc.)
+  - Useful for full repository snapshots and initialization
+  - Includes `commit_message` field in JSON output
+- Added `commit_message` field to JSON output for all commands (sync, info, full)
   - Contains the full commit message (subject + body) dynamically fetched from Git
   - Positioned after `description` field in the JSON structure
 
