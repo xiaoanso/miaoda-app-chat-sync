@@ -122,49 +122,7 @@ class RepoJSONGenerator:
             self._circuit_breaker.record_failure()
             raise
     
-    def _detect_default_branch(self, repo_url: str) -> str:
-        """
-        Detect the default branch of a remote repository.
-        
-        Returns:
-            Default branch name (e.g., 'main', 'master', 'develop')
-        """
-        with temp_directory(prefix='branch-detect-') as temp_dir:
-            try:
-                auth_url = self._make_authenticated_url(repo_url)
-                
-                # Initialize bare repo to get remote info
-                cmd = ['git', 'ls-remote', '--symref', auth_url, 'HEAD']
-                result = self._execute_git_command(cmd, cwd=temp_dir, timeout=30)
-                
-                if result.returncode == 0:
-                    # Parse output like: ref: refs/heads/main	HEAD
-                    for line in result.stdout.split('\n'):
-                        if line.startswith('ref:'):
-                            parts = line.split('\t')
-                            if len(parts) >= 1:
-                                ref = parts[0]
-                                if 'refs/heads/' in ref:
-                                    branch = ref.split('refs/heads/')[1]
-                                    self._log_operation("Detected branch:", branch)
-                                    return branch
-                
-                # Fallback to common branch names
-                for branch in ['main', 'master', 'develop']:
-                    cmd = ['git', 'ls-remote', '--heads', auth_url, branch]
-                    result = self._execute_git_command(cmd, cwd=temp_dir, timeout=30)
-                    if result.returncode == 0 and result.stdout.strip():
-                        self._log_operation("Using fallback branch:", branch)
-                        return branch
-                
-                return 'main'
-                
-            except Exception as e:
-                self._log_operation("Branch detection failed:", str(e))
-                return 'main'
-    
-    def clone_repo(self, repo_url: str, target_dir: str, 
-                   branch: str = 'main', commit: str = None) -> str:
+    def clone_repo(self, repo_url: str, target_dir: str, branch: str = 'main', commit: str = None):
         """
         Clone repository and optionally checkout specific commit.
         Uses full history fetch to support any commit checkout.
@@ -244,73 +202,6 @@ class RepoJSONGenerator:
         except Exception as e:
             raise Exception(f"Git operation failed: {SensitiveInfoHandler.safe_error_message(e)}")
     
-    def get_repo_info(self, repo_url: str, commit: str = None, branch: str = 'main') -> Dict:
-        """
-        Get detailed commit/repository information.
-        
-        Returns:
-            Dict with action, repository, commit info, and branch
-        """
-        with temp_directory(prefix='github-info-') as temp_dir:
-            # Auto-detect branch if not specified or using default 'main'
-            if commit:
-                # When commit is specified, we can use any branch for initial clone
-                # since we'll checkout the specific commit anyway
-                self.clone_repo(repo_url, temp_dir, branch='main', commit=commit)
-                target_ref = commit
-            else:
-                # Auto-detect default branch
-                actual_branch = self._detect_default_branch(repo_url)
-                self.clone_repo(repo_url, temp_dir, branch=actual_branch)
-                target_ref = actual_branch
-
-            env = self._get_git_env()
-            
-            # Get detailed commit info
-            format_str = '%H||%h||%s||%b||%an||%ae||%aI||%cn||%ce||%cI||%P'
-            cmd = ['git', '-C', temp_dir, 'log', '-1', f'--format={format_str}', target_ref]
-            result = self._execute_git_command(cmd, cwd=temp_dir, timeout=30)
-            
-            if result.returncode != 0:
-                raise Exception(f"Failed to get commit info")
-            
-            lines = result.stdout.strip().split('||')
-            if len(lines) < 11:
-                raise Exception("Invalid git log output format")
-            
-            (commit_hash, short_hash, subject, body, 
-             author_name, author_email, author_date,
-             committer_name, committer_email, committer_date, 
-             parents) = lines
-            
-            parent_list = parents.split() if parents else []
-            
-            return {
-                'action': 'COMMIT_INFO',
-                'repository': SensitiveInfoHandler.redact_url(repo_url),
-                'commit': {
-                    'hash': commit_hash,
-                    'short_hash': short_hash,
-                    'message': {
-                        'subject': subject,
-                        'body': body or ''
-                    },
-                    'author': {
-                        'name': author_name,
-                        'email': author_email,
-                        'timestamp': author_date
-                    },
-                    'committer': {
-                        'name': committer_name,
-                        'email': committer_email,
-                        'timestamp': committer_date
-                    },
-                    'parent_commits': parent_list,
-                    'is_merge_commit': len(parent_list) > 1
-                },
-                'branch': branch
-            }
-
     def _merge_consecutive_changes(self, changes: List[Dict]) -> List[Dict]:
         """
         Merge consecutive changes of the same type.
@@ -343,7 +234,7 @@ class RepoJSONGenerator:
         merged.append(current)
         return merged
 
-    def get_commit_diff_changes(self, repo_url: str, commit: str, branch: str = 'main', 
+    def get_commit_diff_info(self, repo_url: str, commit: str, branch: str = 'main',
                              file_filter: str = None, exclude_filter: str = None) -> Dict:
         """
         Get detailed diff information for files changed in a specific commit.
@@ -657,38 +548,3 @@ class RepoJSONGenerator:
                 'rules': prompt_config['rules'],
                 'files': files_list
             }
-    
-    def get_commit_changed_files(self, repo_dir: str, commit: str) -> List[Tuple[str, str]]:
-        """
-        Get list of changed files for a specific commit.
-        
-        Returns:
-            List of tuples (status, filepath)
-        """
-        try:
-            env = self._get_git_env()
-            
-            cmd = ['git', '-C', repo_dir, 'show', '--name-status', '--format=', commit]
-            result = self._execute_git_command(cmd, cwd=repo_dir, timeout=30)
-            
-            if result.returncode != 0:
-                raise Exception("git show failed")
-            
-            changed_files = []
-            lines = result.stdout.strip().split('\n')
-            
-            for line in lines:
-                if not line:
-                    continue
-                parts = line.split('\t')
-                if len(parts) == 2:
-                    status = parts[0].strip()
-                    filepath = parts[1].strip()
-                    changed_files.append((status, filepath))
-            
-            return changed_files
-            
-        except subprocess.TimeoutExpired:
-            raise Exception("git show operation timed out")
-        except Exception as e:
-            raise Exception(f"Failed to get changed files: {SensitiveInfoHandler.safe_error_message(e)}")

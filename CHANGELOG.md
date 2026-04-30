@@ -22,10 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Returns full file content with `CREATE_OR_OVERWRITE` action
     - Output includes file size in characters
   - **`info` command**: Retrieves diff statistics for changed files (for change overview)
-    - Uses new `get_commit_diff_changes()` method
+    - Uses new `get_commit_diff_info()` method
     - Returns additions/deletions statistics per file
     - Terminal output shows `+additions/-deletions` format
     - Displays file status icons (🆕 for added, 📝 for modified)
+
+### Removed
+- **`_detect_default_branch()` method**: No longer needed since branch parameter is mandatory
+- **`get_repo_info()` method**: Replaced by `get_commit_diff_info()` for info command
 
 ### Fixed
 - **Info command regression**: Restored original `info` command output format with diff statistics

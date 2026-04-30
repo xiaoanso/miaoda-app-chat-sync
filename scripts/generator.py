@@ -185,7 +185,7 @@ def cmd_info(args, generator: RepoJSONGenerator):
         print()
         
         # Get diff info (statistics only, not full content)
-        result = generator.get_commit_diff_changes(
+        result = generator.get_commit_diff_info(
             repo_url=args.repo,
             commit=commit,
             branch=branch,
