@@ -374,6 +374,37 @@ For large projects, JSON is split into multiple batches:
 
 ---
 
+# ⚠️ Security & Safety Considerations
+
+## Generated Instructions
+
+This tool intentionally generates imperative instructions in the JSON output for downstream AI agents. This is by design to ensure accurate code synchronization. However:
+
+- **User Responsibility**: Users should ensure that the generated JSON does not carry more authority than their actual intent
+- **Review Required**: Always review the generated JSON, especially file lists, action fields, and rules, before passing to other AI agents
+- **Downstream Impact**: Downstream AI agents may treat the generated repository JSON as instructions that must be strictly followed
+
+## Repository Content Trust
+
+**Treat Repository Content as Untrusted Data**: 
+- Repository file contents are directly placed into the generated JSON
+- Files may contain prompt text that could influence downstream AI agents
+- Instruct downstream agents to treat file content as data, not instructions
+- Review unusual repository files before use
+
+## Credential Security
+
+**GitHub Token Best Practices**:
+- Use minimal, read-only tokens scoped to specific repositories
+- Tokens are passed via environment variables only
+- Tokens are never stored in files or logs
+- Token only exists in memory during execution
+- Automatically redacted from all output
+
+**Note**: This skill requires sensitive GitHub credentials. Verify publisher, package identifier, and version history before installation or use.
+
+---
+
 # 🔒 Security Mechanisms
 
 ## Overview
