@@ -27,20 +27,11 @@ import argparse
 import json
 import os
 import sys
-import shutil
 import tempfile
-from typing import Dict
 
 # Import modular components
-from core.temp_manager import TempDirManager
-from core.circuit_breaker import CircuitBreakerOpenError
-from core.security import SensitiveInfoHandler
-from core.constants import MAX_JSON_CHUNK_SIZE, DEFAULT_CHUNK_SIZE
-
 from git.repository import RepoJSONGenerator
-from processors.file_processor import FileProcessor
 from processors.instruction_gen import InstructionGenerator
-from output.streaming import StreamingFileWriter
 
 
 def create_parser() -> argparse.ArgumentParser:

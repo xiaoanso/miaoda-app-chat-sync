@@ -1,6 +1,5 @@
 # Repo JSON Generator
-
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
@@ -57,6 +56,7 @@ cd miaoda-app-chat-sync
 # Basic sync - generate JSON for entire repository
 python3 scripts/generator.py sync \
   --repo https://github.com/username/my-project \
+  --branch main \
   --commit abc123def456
 ```
 
@@ -66,6 +66,7 @@ python3 scripts/generator.py sync \
 # Get detailed commit information with file contents
 python3 scripts/generator.py info \
   --repo https://github.com/username/my-project \
+  --branch main \
   --commit abc123def456
 ```
 
@@ -89,6 +90,7 @@ Generate structured JSON instructions for code synchronization.
 | Parameter | Description | Example |
 |-----------|-------------|---------|
 | `--repo` | Git repository URL | `https://github.com/user/repo` |
+| `--branch` | Branch name (required) | `main`, `master`, `develop` |
 | `--commit` | Commit hash (optional, defaults to latest) | `abc123def456` |
 
 #### Optional Parameters
@@ -107,6 +109,7 @@ Generate structured JSON instructions for code synchronization.
 # Sync specific files (Python and JavaScript)
 python3 scripts/generator.py sync \
   --repo https://github.com/user/repo \
+  --branch main \
   --filter "*.py,*.js" \
   --max-files 30 \
   --output sync_output.json
@@ -114,6 +117,7 @@ python3 scripts/generator.py sync \
 # Exclude test and documentation files
 python3 scripts/generator.py sync \
   --repo https://github.com/user/repo \
+  --branch main \
   --exclude "*.md,test/*,docs/*" \
   --output sync_output.json
 ```
@@ -129,6 +133,7 @@ Get detailed commit information including changed files and their contents.
 | Parameter | Description | Example |
 |-----------|-------------|---------|
 | `--repo` | Git repository URL | `https://github.com/user/repo` |
+| `--branch` | Branch name (required) | `main`, `master`, `develop` |
 
 #### Optional Parameters
 
@@ -142,21 +147,24 @@ Get detailed commit information including changed files and their contents.
 
 #### Examples
 
-```bash
+```
 # Get commit info with full file contents
 python3 scripts/generator.py info \
   --repo https://github.com/user/repo \
+  --branch main \
   --commit abc123def456
 
 # Save to file (formatted output)
 python3 scripts/generator.py info \
   --repo https://github.com/user/repo \
+  --branch main \
   --commit abc123def456 \
   --output changes.json
 
 # Save pure JSON only
 python3 scripts/generator.py info \
   --repo https://github.com/user/repo \
+  --branch main \
   --commit abc123def456 \
   --output changes.json \
   --no-instructions
@@ -164,6 +172,7 @@ python3 scripts/generator.py info \
 # Filter specific file types
 python3 scripts/generator.py info \
   --repo https://github.com/user/repo \
+  --branch main \
   --commit abc123def456 \
   --filter "*.ts,*.tsx" \
   --output changes.json
@@ -181,7 +190,7 @@ python3 scripts/generator.py info \
 
 ---
 
-## 🏗️ Architecture (v3.0.0)
+## 🏗️ Architecture (v3.2.0)
 
 ### Modular Structure
 
@@ -192,14 +201,13 @@ scripts/
 │   ├── constants.py          # Shared constants and configuration
 │   ├── temp_manager.py       # Cross-platform temp directory management
 │   ├── circuit_breaker.py    # Circuit breaker & retry mechanism
-│   └── security.py           # Sensitive information protection
+│   ├── security.py           # Sensitive information protection
+│   └── prompts.py            # Prompt configuration management
 ├── git/
 │   └── repository.py         # Git repository operations
-├── processors/
-│   ├── file_processor.py     # File reading and filtering
-│   └── instruction_gen.py    # JSON instruction generation
-└── output/
-    └── streaming.py          # Streaming/chunked output
+└── processors/
+    ├── file_processor.py     # File reading and filtering
+    └── instruction_gen.py    # JSON instruction generation
 ```
 
 ### Module Dependencies
@@ -211,10 +219,14 @@ git/ (depends on core)
   ↓
 processors/ (depends on core, git)
   ↓
-output/ (depends on processors)
-  ↓
 generator.py (depends on all modules)
 ```
+
+### Architecture Improvements in v3.2.0
+
+- **Removed streaming.py**: Stream output module removed as it was unused
+- **Simplified dependencies**: Cleaner module structure with only actively used components
+- **Enhanced maintainability**: Reduced code complexity by ~320 lines of dead code
 
 ### Benefits
 
@@ -311,6 +323,7 @@ When codebase exceeds thresholds, the tool automatically suggests batch processi
 # Batch 1: Configuration files
 python3 scripts/generator.py sync \
   --repo <repo_url> \
+  --branch main \
   --filter "*.json,*.yaml,*.toml" \
   --max-files 20 \
   --output batch1_config.json
@@ -318,6 +331,7 @@ python3 scripts/generator.py sync \
 # Batch 2: Frontend code
 python3 scripts/generator.py sync \
   --repo <repo_url> \
+  --branch main \
   --filter "src/*.vue,src/*.js,src/*.ts" \
   --max-files 30 \
   --output batch2_frontend.json
@@ -325,6 +339,7 @@ python3 scripts/generator.py sync \
 # Batch 3: Backend code
 python3 scripts/generator.py sync \
   --repo <repo_url> \
+  --branch main \
   --filter "api/*.py,models/*.py" \
   --max-files 30 \
   --output batch3_backend.json
@@ -499,7 +514,7 @@ Contributions are welcome! Please follow these guidelines:
 
 ---
 
-**Version**: 3.0.0  
-**Last Updated**: 2026-04-29  
+**Version**: 3.2.0  
+**Last Updated**: 2026-04-30  
 **Python Version**: 3.8+  
 **Dependencies**: Python Standard Library + Git

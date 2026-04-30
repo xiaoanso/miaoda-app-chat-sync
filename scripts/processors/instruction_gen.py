@@ -11,7 +11,6 @@ from typing import Dict
 from datetime import datetime
 
 from core.security import SensitiveInfoHandler
-from core.prompts import PromptConfig
 
 
 class InstructionGenerator:
