@@ -1,4 +1,5 @@
 # Repo JSON Generator（仓库 JSON 指令生成器）
+
 [![版本](https://img.shields.io/badge/version-3.2.0-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://www.python.org/)
 [![许可证](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
@@ -11,7 +12,6 @@
 
 **📖 英文版文档：[README.md](README.md)**
 **📖 中文使用文档：[USER_GUIDE.md](USER_GUIDE.md)**
-
 
 ### 核心特性
 
@@ -26,12 +26,12 @@
 
 ### 为什么使用结构化 JSON？
 
-| 方面 | 自然语言 | 结构化 JSON |
-|------|---------|------------|
-| **准确率** | 70-80% | 90-95% |
+| 方面                 | 自然语言     | 结构化 JSON         |
+| -------------------- | ------------ | ------------------- |
+| **准确率**     | 70-80%       | 90-95%              |
 | **文件完整性** | 可能遗漏文件 | JSON 结构保证完整性 |
-| **可控性** | 难以验证 | 处理前易于验证 |
-| **批处理** | 困难 | 内置支持 |
+| **可控性**     | 难以验证     | 处理前易于验证      |
+| **批处理**     | 困难         | 内置支持            |
 
 ---
 
@@ -54,7 +54,7 @@ cd miaoda-app-chat-sync
 
 ### 基本使用
 
-#### 1. 生成 JSON 指令（Sync 命令）
+#### 1. 获取Commit 信息完整内容（Sync 命令）
 
 ```bash
 # 基础同步 - 为整个仓库生成 JSON
@@ -64,7 +64,7 @@ python3 scripts/generator.py sync \
   --commit abc123def456
 ```
 
-#### 2. 获取 Commit 信息（Info 命令）
+#### 2. 获取Commit 信息变更内容（Info 命令）
 
 ```bash
 # 获取详细的 commit 信息及文件内容
@@ -74,7 +74,7 @@ python3 scripts/generator.py info \
   --commit abc123def456
 ```
 
-#### 3. 获取完整仓库快照（Full 命令）
+#### 3. 获取完整仓库快照完整内容（Full 命令）
 
 ```bash
 # 获取指定 commit 的完整文件内容
@@ -98,25 +98,25 @@ python3 scripts/generator.py --help
 
 ### `sync` 命令
 
-生成用于代码同步的结构化 JSON 指令。
+获取详细的 commit 信息，包括变更文件的完整内容。
 
 #### 必需参数
 
-| 参数 | 说明 | 示例 |
-|------|------|------|
-| `--repo` | Git 仓库 URL | `https://github.com/user/repo` |
-| `--branch` | 分支名称（必需） | `main`、`master`、`develop` |
-| `--commit` | Commit hash（可选，默认为最新） | `abc123def456` |
+| 参数         | 说明                            | 示例                              |
+| ------------ | ------------------------------- | --------------------------------- |
+| `--repo`   | Git 仓库 URL                    | `https://github.com/user/repo`  |
+| `--branch` | 分支名称（必需）                | `main`、`master`、`develop` |
+| `--commit` | Commit hash（可选，默认为最新） | `abc123def456`                  |
 
 #### 可选参数
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `--filter` | 仅包含匹配模式的文件 | 所有文件 |
-| `--exclude` | 排除匹配模式的文件 | 无 |
-| `--max-files` | 最大处理文件数 | 50 |
-| `--output` | 保存输出到文件 | 仅终端显示 |
-| `--no-instructions` | 输出纯 JSON（无格式化说明） | 显示说明 |
+| 参数                  | 说明                        | 默认值     |
+| --------------------- | --------------------------- | ---------- |
+| `--filter`          | 仅包含匹配模式的文件        | 所有文件   |
+| `--exclude`         | 排除匹配模式的文件          | 无         |
+| `--max-files`       | 最大处理文件数              | 50         |
+| `--output`          | 保存输出到文件              | 仅终端显示 |
+| `--no-instructions` | 输出纯 JSON（无格式化说明） | 显示说明   |
 
 #### 示例
 
@@ -141,24 +141,24 @@ python3 scripts/generator.py sync \
 
 ### `info` 命令
 
-获取详细的 commit 信息，包括变更文件及其内容。
+获取详细的 commit 信息，包括变更文件及其变化内容。
 
 #### 必需参数
 
-| 参数 | 说明 | 示例 |
-|------|------|------|
-| `--repo` | Git 仓库 URL | `https://github.com/user/repo` |
+| 参数         | 说明             | 示例                              |
+| ------------ | ---------------- | --------------------------------- |
+| `--repo`   | Git 仓库 URL     | `https://github.com/user/repo`  |
 | `--branch` | 分支名称（必需） | `main`、`master`、`develop` |
 
 #### 可选参数
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `--commit` | 指定 commit hash | 最新 commit |
-| `--filter` | 仅包含匹配模式的文件 | 所有文件 |
-| `--exclude` | 排除匹配模式的文件 | 无 |
-| `--output` | 保存输出到文件 | 仅终端显示 |
-| `--no-instructions` | 保存纯 JSON 到文件 | 格式化输出 |
+| 参数                  | 说明                 | 默认值      |
+| --------------------- | -------------------- | ----------- |
+| `--commit`          | 指定 commit hash     | 最新 commit |
+| `--filter`          | 仅包含匹配模式的文件 | 所有文件    |
+| `--exclude`         | 排除匹配模式的文件   | 无          |
+| `--output`          | 保存输出到文件       | 仅终端显示  |
+| `--no-instructions` | 保存纯 JSON 到文件   | 格式化输出  |
 
 #### 示例
 
@@ -195,11 +195,11 @@ python3 scripts/generator.py info \
 
 #### 输出行为
 
-| 场景 | 终端 | 文件 |
-|------|------|------|
-| 无 `--output` | 显示摘要 | 不保存 |
-| 有 `--output` | 显示摘要 | 完整格式化（摘要 + JSON） |
-| `--output` + `--no-instructions` | 显示摘要 | 仅纯 JSON |
+| 场景                                 | 终端     | 文件                      |
+| ------------------------------------ | -------- | ------------------------- |
+| 无`--output`                       | 显示摘要 | 不保存                    |
+| 有`--output`                       | 显示摘要 | 完整格式化（摘要 + JSON） |
+| `--output` + `--no-instructions` | 显示摘要 | 仅纯 JSON                 |
 
 **注意**：在所有场景下，终端**始终**显示摘要信息。
 
@@ -210,6 +210,7 @@ python3 scripts/generator.py info \
 获取指定 commit 版本的所有文件的完整内容。此命令检索给定 commit 处的完整仓库快照（而非仅变更文件）。
 
 **使用场景：**
+
 - 在特定版本进行完整仓库备份
 - 使用完整代码库初始化新项目
 - 对比不同版本间的完整代码差异
@@ -217,22 +218,22 @@ python3 scripts/generator.py info \
 
 #### 必需参数
 
-| 参数 | 说明 | 示例 |
-|------|------|------|
-| `--repo` | Git 仓库 URL | `https://github.com/user/repo` |
+| 参数         | 说明             | 示例                              |
+| ------------ | ---------------- | --------------------------------- |
+| `--repo`   | Git 仓库 URL     | `https://github.com/user/repo`  |
 | `--branch` | 分支名称（必需） | `main`、`master`、`develop` |
 
 #### 可选参数
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `--commit` | 指定 commit hash | 最新 commit |
-| `--filter` | 仅包含匹配模式的文件（如 "*.py,*.js"） | 所有文件 |
-| `--exclude` | 排除匹配模式的文件（如 "*.md,test/*"） | 无 |
-| `--max-files` | 最大处理文件数 | `50` |
-| `--output` | 保存输出到文件 | 仅终端显示 |
-| `--no-instructions` | 输出纯 JSON（无格式化说明） | 格式化输出 |
-| `--verbose` | 启用详细日志 | 禁用 |
+| 参数                  | 说明                                     | 默认值      |
+| --------------------- | ---------------------------------------- | ----------- |
+| `--commit`          | 指定 commit hash                         | 最新 commit |
+| `--filter`          | 仅包含匹配模式的文件（如 "*.py,*.js"） | 所有文件    |
+| `--exclude`         | 排除匹配模式的文件（如 "*.md,test/*"） | 无          |
+| `--max-files`       | 最大处理文件数                           | `50`      |
+| `--output`          | 保存输出到文件                           | 仅终端显示  |
+| `--no-instructions` | 输出纯 JSON（无格式化说明）              | 格式化输出  |
+| `--verbose`         | 启用详细日志                             | 禁用        |
 
 #### 示例
 
@@ -404,15 +405,15 @@ generator.py（依赖所有模块）
 }
 ```
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `action` | 字符串 | 始终为 "CREATE_OR_UPDATE_FILES" |
-| `description` | 字符串 | 人类可读的指令 |
+| 字段               | 类型   | 说明                                 |
+| ------------------ | ------ | ------------------------------------ |
+| `action`         | 字符串 | 始终为 "CREATE_OR_UPDATE_FILES"      |
+| `description`    | 字符串 | 人类可读的指令                       |
 | `commit_message` | 字符串 | Git commit 的提交信息（主题 + 正文） |
-| `source` | 对象 | Git 来源信息，用于追溯 |
-| `summary` | 对象 | 变更摘要 |
-| `rules` | 数组 | AI Agent 的指令 |
-| `files` | 数组 | 要创建或更新的文件列表 |
+| `source`         | 对象   | Git 来源信息，用于追溯               |
+| `summary`        | 对象   | 变更摘要                             |
+| `rules`          | 数组   | AI Agent 的指令                      |
+| `files`          | 数组   | 要创建或更新的文件列表               |
 
 ### 与 Miaoda 平台集成
 
@@ -431,10 +432,10 @@ generator.py（依赖所有模块）
 
 当代码库超过阈值时，工具会自动建议批处理：
 
-| 条件 | 操作 |
-|------|------|
-| 文件数 > 50 | 建议拆分 |
-| 总大小 > 5MB | 建议拆分 |
+| 条件         | 操作       |
+| ------------ | ---------- |
+| 文件数 > 50  | 建议拆分   |
+| 总大小 > 5MB | 建议拆分   |
 | 混合文件类型 | 按类别拆分 |
 
 ### 推荐的批处理策略
@@ -479,8 +480,8 @@ python3 scripts/generator.py sync \
 
 #### 环境变量
 
-| 变量 | 说明 | 必需 |
-|------|------|------|
+| 变量             | 说明                                  | 必需 |
+| ---------------- | ------------------------------------- | ---- |
 | `GITHUB_TOKEN` | GitHub 个人访问 Token（用于私有仓库） | 可选 |
 
 **⚠️ 安全提示**：此工具在访问私有仓库时需要 GitHub 凭据。请仅使用最小权限的只读 Token，并限定到特定仓库。
@@ -488,11 +489,13 @@ python3 scripts/generator.py sync \
 ### Token 设置
 
 **公共仓库**（无需 Token）：
+
 ```bash
 python3 scripts/generator.py sync --repo https://github.com/user/public-repo
 ```
 
 **私有仓库**（需要 Token）：
+
 ```bash
 # 步骤 1：创建 Token（GitHub → Settings → Developer settings → Personal access tokens）
 # 步骤 2：设置环境变量
@@ -502,46 +505,53 @@ python3 scripts/generator.py sync --repo https://github.com/user/private-repo
 ```
 
 **Token 要求：**
+
 - 仅需 `repo` 读取权限
 - 格式：`ghp_*`、`gho_*`、`ghu_*`、`ghs_*` 或 `ghr_*`
 
 ### 安全机制
 
 **1. 自动 Token 检测**
+
 - 公共仓库：无需 Token 直接克隆
 - 私有仓库：自动注入 Token
 - 非 GitHub 仓库：不应用 Token
 
 **2. 敏感信息脱敏**
 所有敏感数据自动检测并屏蔽：
+
 - GitHub Token：`ghp_*` → `<GITHUB_TOKEN>`
 - API 密钥、密码、Bearer Token：自动脱敏
 
 **3. URL 凭据移除**
 输出中的所有 URL 自动清理：
+
 ```
 输入：  https://x-access-token:ghp_abc123@github.com/user/repo.git
 输出：  https://github.com/user/repo.git
 ```
 
 **4. 安全的 Git 操作**
+
 - 非交互模式（`GIT_TERMINAL_PROMPT=0`）
 - 通过 URL 传递 Token（不在命令行参数中）
 - 在进程列表中不可见
 
 **5. 临时文件安全（跨平台）**
+
 - 执行后自动清理
 - 磁盘上不留存敏感数据
 - 基于 UUID 的唯一目录名
 
 **临时目录位置：**
 
-| 平台 | 位置 | 示例 |
-|------|------|------|
-| macOS/Linux | `/tmp/github-<uuid>/` | `/tmp/github-a1b2c3d4/` |
-| Windows | `%TEMP%\github-<uuid>\` | `C:\Users\user\AppData\Local\Temp\github-a1b2c3d4\` |
+| 平台        | 位置                      | 示例                                                  |
+| ----------- | ------------------------- | ----------------------------------------------------- |
+| macOS/Linux | `/tmp/github-<uuid>/`   | `/tmp/github-a1b2c3d4/`                             |
+| Windows     | `%TEMP%\github-<uuid>\` | `C:\Users\user\AppData\Local\Temp\github-a1b2c3d4\` |
 
 **清理机制：**
+
 - 上下文管理器（`with temp_directory()`）
 - `atexit` 处理器确保清理
 - 信号处理器（`SIGTERM`、`SIGINT`）
@@ -554,10 +564,10 @@ python3 scripts/generator.py sync --repo https://github.com/user/private-repo
 
 工具使用系统临时目录，并采用基于 UUID 的名称：
 
-| 平台 | 位置 | 示例 |
-|------|------|------|
-| **macOS/Linux** | `/tmp/github-<uuid>/` | `/tmp/github-a1b2c3d4/` |
-| **Windows** | `%TEMP%\github-<uuid>\` | `C:\Users\<user>\AppData\Local\Temp\github-a1b2c3d4\` |
+| 平台                  | 位置                      | 示例                                                    |
+| --------------------- | ------------------------- | ------------------------------------------------------- |
+| **macOS/Linux** | `/tmp/github-<uuid>/`   | `/tmp/github-a1b2c3d4/`                               |
+| **Windows**     | `%TEMP%\github-<uuid>\` | `C:\Users\<user>\AppData\Local\Temp\github-a1b2c3d4\` |
 
 ### 快速说明
 
@@ -572,16 +582,17 @@ python3 scripts/generator.py sync --repo https://github.com/user/private-repo
 
 ### 当前限制
 
-| 限制 | 上限 | 建议 |
-|------|------|------|
-| 每批次文件数 | <50 个文件 | 大型项目使用批处理 |
-| 单个文件大小 | <100KB | 拆分超大文件 |
-| 二进制文件 | 不支持 | 排除图片、字体、可执行文件 |
-| AI 准确率 | ~90-95% | 同步后务必验证 |
+| 限制         | 上限       | 建议                       |
+| ------------ | ---------- | -------------------------- |
+| 每批次文件数 | <50 个文件 | 大型项目使用批处理         |
+| 单个文件大小 | <100KB     | 拆分超大文件               |
+| 二进制文件   | 不支持     | 排除图片、字体、可执行文件 |
+| AI 准确率    | ~90-95%    | 同步后务必验证             |
 
 ### 最佳实践
 
 ✅ **建议做法：**
+
 - 使用结构化 JSON 模板（本工具输出）
 - 按文件类型分批大型项目
 - 每次同步后验证文件数量
@@ -589,6 +600,7 @@ python3 scripts/generator.py sync --repo https://github.com/user/private-repo
 - 先同步配置文件
 
 ❌ **避免做法：**
+
 - 单批次发送超过 50 个文件
 - 在同步中包含二进制文件
 - 跳过验证步骤
@@ -615,11 +627,13 @@ python3 scripts/generator.py sync --repo https://github.com/user/private-repo
 ### 下游 Agent 行为
 
 **AI Agent 解释**：当生成的 JSON 被下游 AI Agent 处理时，它们可能会：
+
 - 根据 JSON 指令创建或覆盖文件
 - 将规则解释为严格要求
 - 处理可能包含提示注入尝试的仓库内容
 
 **最佳实践**：
+
 1. 执行前始终审查生成的 JSON
 2. 使用特定 commit hash 确保可重现性
 3. 在发送给下游 Agent 前验证文件列表和内容
@@ -632,13 +646,13 @@ python3 scripts/generator.py sync --repo https://github.com/user/private-repo
 
 ### 常见问题
 
-| 问题 | 原因 | 解决方案 |
-|------|------|----------|
-| 同步后文件缺失 | AI 跳过了某些文件 | 使用带严格规则的 JSON 模板 |
-| 代码被修改/改变 | AI 尝试"改进"代码 | 在规则中强调"不要修改" |
-| 同步不完整 | 一次处理太多文件 | 使用批处理 |
-| Token 限制超出 | JSON 太大 | 拆分为更小的批次 |
-| 私有仓库访问被拒绝 | 缺少 Token | 提供 GITHUB_TOKEN |
+| 问题               | 原因              | 解决方案                   |
+| ------------------ | ----------------- | -------------------------- |
+| 同步后文件缺失     | AI 跳过了某些文件 | 使用带严格规则的 JSON 模板 |
+| 代码被修改/改变    | AI 尝试"改进"代码 | 在规则中强调"不要修改"     |
+| 同步不完整         | 一次处理太多文件  | 使用批处理                 |
+| Token 限制超出     | JSON 太大         | 拆分为更小的批次           |
+| 私有仓库访问被拒绝 | 缺少 Token        | 提供 GITHUB_TOKEN          |
 
 ---
 
@@ -668,7 +682,7 @@ python3 scripts/generator.py sync --repo https://github.com/user/private-repo
 
 ---
 
-**版本**：3.2.0  
-**最后更新**：2026-04-30  
-**Python 版本**：3.8+  
+**版本**：3.2.0
+**最后更新**：2026-04-30
+**Python 版本**：3.8+
 **依赖**：Python 标准库 + Git
