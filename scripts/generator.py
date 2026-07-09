@@ -93,6 +93,26 @@ Usage:
     full_parser.add_argument('--output', help='Save output to file')
     full_parser.add_argument('--no-instructions', action='store_true', help='Output pure JSON without formatted instructions')
     full_parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+
+    # branches command
+    branches_parser = subparsers.add_parser(
+        'branches',
+        help='List remote branches for a Git repository'
+    )
+    branches_parser.add_argument('--repo', required=True, help='Git repository URL')
+    branches_parser.add_argument('--output', help='Save output to file')
+    branches_parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+
+    # versions command
+    versions_parser = subparsers.add_parser(
+        'versions',
+        help='List recent commit versions for a specific branch'
+    )
+    versions_parser.add_argument('--repo', required=True, help='Git repository URL')
+    versions_parser.add_argument('--branch', required=True, help='Branch name (required)')
+    versions_parser.add_argument('--limit', type=int, default=30, help='Number of recent versions to fetch (default: 30, max: 100)')
+    versions_parser.add_argument('--output', help='Save output to file')
+    versions_parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
     
     return parser
 
@@ -227,6 +247,41 @@ def cmd_info(args, generator: RepoJSONGenerator):
         sys.exit(1)
 
 
+def _output_json_result(result: dict, output: str = None):
+    """Output JSON result to stdout or file."""
+    payload = json.dumps(result, ensure_ascii=False, indent=2)
+    if output:
+        with open(output, 'w', encoding='utf-8') as f:
+            f.write(payload)
+        print(f"💾 Output saved to: {output}")
+    else:
+        print(payload)
+
+
+def cmd_branches(args, generator: RepoJSONGenerator):
+    """Handle branches command"""
+    try:
+        result = generator.get_branches(args.repo)
+        _output_json_result(result, args.output)
+    except Exception as e:
+        print(f"❌ Error: {str(e)}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_versions(args, generator: RepoJSONGenerator):
+    """Handle versions command"""
+    try:
+        result = generator.get_branch_versions(
+            repo_url=args.repo,
+            branch=args.branch,
+            limit=args.limit,
+        )
+        _output_json_result(result, args.output)
+    except Exception as e:
+        print(f"❌ Error: {str(e)}", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_full(args, generator: RepoJSONGenerator):
     """Handle full command"""
     try:
@@ -311,6 +366,10 @@ def main():
         cmd_info(args, generator)
     elif args.command == 'full':
         cmd_full(args, generator)
+    elif args.command == 'branches':
+        cmd_branches(args, generator)
+    elif args.command == 'versions':
+        cmd_versions(args, generator)
     else:
         parser.print_help()
         sys.exit(1)

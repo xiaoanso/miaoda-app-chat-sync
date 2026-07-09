@@ -18,7 +18,8 @@ Convert Git repository code to structured JSON instructions for AI agents and au
 - ✅ **Modular Architecture**: Clean, maintainable codebase with independent modules
 - ✅ **Batch Processing**: Automatic splitting for large projects (>50 files)
 - ✅ **File Filtering**: Include/exclude files by pattern (`--filter`, `--exclude`)
-- ✅ **Multiple Commands**: `sync` for code sync, `info` for commit information
+- ✅ **Multiple Commands**: `sync` for code sync, `info` for commit information, `full` for complete snapshots
+- ✅ **Auxiliary Helpers**: `branches` and `versions` to discover branches and recent commits before syncing
 - ✅ **Cross-Platform**: Works on Windows, macOS, and Linux
 - ✅ **Zero Dependencies**: Only requires Python 3.8+ and Git
 - ✅ **Security Features**: Includes token protection, automatic cleanup, and sensitive data redaction
@@ -89,6 +90,22 @@ python3 scripts/generator.py full \
 ```bash
 # View all available commands and options
 python3 scripts/generator.py --help
+```
+
+#### 5. Auxiliary Helpers (Optional)
+
+Use these commands to discover branches and recent commits **before** running `sync`, `info`, or `full`:
+
+```bash
+# List remote branches
+python3 scripts/generator.py branches \
+  --repo https://github.com/username/my-project
+
+# List recent commits on a branch (default: 30, max: 100)
+python3 scripts/generator.py versions \
+  --repo https://github.com/username/my-project \
+  --branch main \
+  --limit 10
 ```
 
 ---
@@ -294,6 +311,43 @@ The `full` command outputs JSON with the same structure as `sync`, but includes 
     }
   ]
 }
+```
+
+---
+
+### Auxiliary Commands (`branches` / `versions`)
+
+These are **helper commands** implemented in `scripts/git/repository.py` (`get_branches()`, `get_branch_versions()`). They do not generate JSON sync instructions; they only return repository metadata to help you choose `--branch` and `--commit` for the core commands.
+
+#### `branches` Command
+
+List remote branches without a full clone.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `--repo` | Yes | Git repository URL |
+| `--output` | No | Save JSON output to file |
+
+```bash
+python3 scripts/generator.py branches --repo https://github.com/user/repo
+```
+
+#### `versions` Command
+
+List recent commit versions for a specific branch.
+
+| Parameter | Required | Description | Default |
+|-----------|----------|-------------|---------|
+| `--repo` | Yes | Git repository URL | — |
+| `--branch` | Yes | Branch name | — |
+| `--limit` | No | Number of recent versions (1–100) | 30 |
+| `--output` | No | Save JSON output to file | — |
+
+```bash
+python3 scripts/generator.py versions \
+  --repo https://github.com/user/repo \
+  --branch main \
+  --limit 10
 ```
 
 ---

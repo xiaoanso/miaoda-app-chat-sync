@@ -20,6 +20,7 @@
 - ✅ **批处理**：大型项目自动拆分（>50 个文件）
 - ✅ **文件过滤**：按模式包含/排除文件（`--filter`、`--exclude`）
 - ✅ **多命令支持**：`sync` 用于代码同步，`info` 用于查看 commit 信息，`full` 用于完整快照
+- ✅ **辅助查询**：`branches` 和 `versions` 用于在执行同步前查询分支和最近版本
 - ✅ **跨平台**：支持 Windows、macOS 和 Linux
 - ✅ **零依赖**：仅需 Python 3.8+ 和 Git
 - ✅ **安全特性**：包含 Token 保护、自动清理和敏感数据脱敏
@@ -90,6 +91,22 @@ python3 scripts/generator.py full \
 ```bash
 # 查看所有可用命令和选项
 python3 scripts/generator.py --help
+```
+
+#### 5. 辅助命令（可选）
+
+在执行 `sync` / `info` / `full` 之前，可用以下命令查询分支和最近版本：
+
+```bash
+# 列出远程分支
+python3 scripts/generator.py branches \
+  --repo https://github.com/username/my-project
+
+# 列出分支最近 commit（默认 30 条，最多 100 条）
+python3 scripts/generator.py versions \
+  --repo https://github.com/username/my-project \
+  --branch main \
+  --limit 10
 ```
 
 ---
@@ -296,6 +313,43 @@ python3 scripts/generator.py full \
     }
   ]
 }
+```
+
+---
+
+### 辅助命令（`branches` / `versions`）
+
+这两个命令为**辅助函数**，实现在 `scripts/git/repository.py`（`get_branches()`、`get_branch_versions()`）。它们不生成 JSON 同步指令，仅返回仓库元数据，帮助你在执行核心命令前确认 `--branch` 和 `--commit` 参数。
+
+#### `branches` 命令
+
+无需完整 clone，列出远程分支。
+
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| `--repo` | ✅ | Git 仓库 URL |
+| `--output` | ❌ | 保存 JSON 到文件 |
+
+```bash
+python3 scripts/generator.py branches --repo https://github.com/user/repo
+```
+
+#### `versions` 命令
+
+获取指定分支最近的 commit 版本列表。
+
+| 参数 | 必需 | 说明 | 默认值 |
+|------|------|------|--------|
+| `--repo` | ✅ | Git 仓库 URL | — |
+| `--branch` | ✅ | 分支名称 | — |
+| `--limit` | ❌ | 最近版本数量（1–100） | 30 |
+| `--output` | ❌ | 保存 JSON 到文件 | — |
+
+```bash
+python3 scripts/generator.py versions \
+  --repo https://github.com/user/repo \
+  --branch main \
+  --limit 10
 ```
 
 ---

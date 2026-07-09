@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repo JSON Generator - Web UI</title>
+    <style>
+        :root {
+            --bg-primary: #1a1b26;
+            --bg-secondary: #16161e;
+            --bg-tertiary: #24283b;
+            --bg-input: #1a1b26;
+            --text-primary: #a9b1d6;
+            --text-secondary: #7aa2f7;
+            --text-heading: #c0caf5;
+            --accent-blue: #7aa2f7;
+            --accent-green: #9ece6a;
+            --accent-red: #f7768e;
+            --accent-orange: #ff9e64;
+            --accent-purple: #bb9af7;
+            --border-color: #292e42;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        header {
+            text-align: center;
+            padding: 24px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        header h1 { font-size: 2rem; color: var(--text-heading); margin-bottom: 8px; }
+        header h1 span { color: var(--accent-blue); }
+        header p { color: var(--text-secondary); font-size: 0.95rem; }
+
+        .header-meta {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+        }
+
+        .badge.ok { border-color: var(--accent-green); color: var(--accent-green); }
+        .badge.warn { border-color: var(--accent-orange); color: var(--accent-orange); }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 15px 20px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-header h2 { font-size: 1rem; color: var(--text-heading); }
+        .panel-body { padding: 20px; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(122, 162, 247, 0.15);
+        }
+
+        .form-group input.invalid { border-color: var(--accent-red); }
+        .field-hint { font-size: 0.75rem; color: var(--accent-red); margin-top: 4px; min-height: 1em; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .input-with-button { display: flex; gap: 8px; align-items: center; }
+        .input-with-button input { flex: 1; }
+
+        .btn-load {
+            flex: none;
+            width: 40px;
+            height: 38px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-load:hover { border-color: var(--accent-blue); background: rgba(122, 162, 247, 0.1); }
+        .btn-load:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-load.loading { animation: spin 1s linear infinite; }
+
+        .command-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .command-btn {
+            flex: 1;
+            min-width: 90px;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .command-btn:hover { border-color: var(--accent-blue); background: rgba(122, 162, 247, 0.1); }
+        .command-btn.active { border-color: var(--accent-blue); background: var(--accent-blue); color: #1a1b26; }
+        .command-btn .cmd-icon { display: block; font-size: 1.2rem; margin-bottom: 4px; }
+
+        .command-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            line-height: 1.5;
+            padding: 8px 10px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+        }
+
+        .options-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            user-select: none;
+        }
+
+        .options-toggle:hover { color: var(--text-heading); }
+        .options-toggle .arrow { transition: transform 0.2s; }
+        .options-toggle.open .arrow { transform: rotate(90deg); }
+
+        .options-panel {
+            display: none;
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .options-panel.show { display: block; }
+
+        .action-buttons { display: flex; gap: 10px; margin-top: 16px; }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary { background: var(--accent-blue); color: #1a1b26; }
+        .btn-primary:hover { background: #89aef7; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover { border-color: var(--accent-blue); }
+        .btn-sm { flex: none; padding: 6px 12px; font-size: 0.8rem; }
+
+        .output-tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--bg-secondary);
+            padding: 10px 10px 0;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .tab-btn:hover { color: var(--text-heading); }
+        .tab-btn.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+
+        .tab-content { display: none; padding: 15px; }
+        .tab-content.active { display: block; }
+
+        .summary-card {
+            display: none;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+        }
+
+        .summary-card.show { display: block; }
+        .summary-card.error { border-color: var(--accent-red); }
+        .summary-card h3 { color: var(--text-heading); font-size: 0.9rem; margin-bottom: 8px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+        .summary-item span { display: block; color: var(--text-secondary); font-size: 0.75rem; }
+        .summary-item strong { color: var(--text-heading); }
+
+        .json-toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .json-view {
+            min-height: 360px;
+            max-height: 520px;
+            overflow: auto;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .output-area {
+            width: 100%;
+            min-height: 360px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            resize: vertical;
+        }
+
+        .json-key { color: var(--accent-blue); }
+        .json-string { color: var(--accent-green); }
+        .json-number { color: var(--accent-orange); }
+        .json-boolean { color: var(--accent-purple); }
+        .json-null { color: var(--accent-red); }
+
+        .status-bar {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+        }
+
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .status-dot.success { background: var(--accent-green); }
+        .status-dot.error { background: var(--accent-red); }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(22, 22, 30, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-overlay.show { display: flex; }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 12px 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-left: 4px solid var(--accent-green); }
+        .toast.error { border-left: 4px solid var(--accent-red); }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+        .history-list { max-height: 220px; overflow-y: auto; }
+
+        .history-item {
+            padding: 10px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .history-item:hover { background: var(--bg-tertiary); }
+        .history-item .time { font-size: 0.75rem; color: var(--text-secondary); }
+        .history-item .cmd { font-size: 0.85rem; color: var(--accent-green); }
+        .history-item .status.ok { color: var(--accent-green); font-size: 0.75rem; }
+        .history-item .status.err { color: var(--accent-red); font-size: 0.75rem; }
+
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📦 Repo <span>JSON Generator</span></h1>
+            <p>从 Git 仓库生成结构化 JSON 指令，供 AI 代理和自动化工具使用</p>
+            <div class="header-meta">
+                <span class="badge" id="tokenBadge">检测 Token 状态...</span>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <span>⚙️</span>
+                    <h2>配置参数</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="command-selector">
+                        <button class="command-btn active" data-command="sync" type="button">
+                            <span class="cmd-icon">🔄</span>Sync
+                        </button>
+                        <button class="command-btn" data-command="info" type="button">
+                            <span class="cmd-icon">ℹ️</span>Info
+                        </button>
+                        <button class="command-btn" data-command="full" type="button">
+                            <span class="cmd-icon">📋</span>Full
+                        </button>
+                    </div>
+                    <p class="command-desc" id="commandDesc">增量同步：获取指定 commit 的变更文件及其完整内容</p>
+
+                    <div class="form-group">
+                        <label for="repoUrl">📦 仓库地址</label>
+                        <input type="url" id="repoUrl" placeholder="https://github.com/user/repo.git" autocomplete="off">
+                        <div class="field-hint" id="repoHint"></div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="branch">🌿 分支</label>
+                            <div class="input-with-button">
+                                <input type="text" id="branch" list="branchList" placeholder="main" value="main" autocomplete="off">
+                                <datalist id="branchList"></datalist>
+                                <button class="btn-load" type="button" id="loadBranchBtn" title="加载分支">🔄</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="commit">📌 Commit（可选）</label>
+                            <div class="input-with-button">
+                                <input type="text" id="commit" list="commitList" placeholder="留空则使用最新 commit" autocomplete="off">
+                                <datalist id="commitList"></datalist>
+                                <button class="btn-load" type="button" id="loadCommitBtn" title="加载版本列表">🔄</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="options-toggle" id="optionsToggle">
+                        <span class="arrow">▶</span>
+                        <span>高级选项</span>
+                    </div>
+                    <div class="options-panel" id="optionsPanel">
+                        <div class="form-group">
+                            <label for="fileFilter">✅ 文件过滤</label>
+                            <input type="text" id="fileFilter" placeholder='例如: "*.py,*.js"'>
+                        </div>
+                        <div class="form-group">
+                            <label for="excludeFilter">⛔ 排除文件</label>
+                            <input type="text" id="excludeFilter" placeholder='例如: "*.md,test/*"'>
+                        </div>
+                        <div class="form-group" id="maxFilesGroup">
+                            <label for="maxFiles">📊 最大文件数（sync / full）</label>
+                            <input type="number" id="maxFiles" value="50" min="1" max="500">
+                        </div>
+                        <div class="form-group">
+                            <label for="versionLimit">📌 版本加载数量</label>
+                            <input type="number" id="versionLimit" value="30" min="1" max="100">
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" id="executeBtn" type="button">
+                            <span>🚀</span><span>执行</span>
+                        </button>
+                        <button class="btn btn-secondary" id="clearBtn" type="button" title="清空输出">🗑️</button>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <div class="options-toggle" id="historyToggle">
+                            <span class="arrow">▶</span>
+                            <span>执行历史</span>
+                        </div>
+                        <div class="options-panel" id="historyPanel">
+                            <div class="history-list" id="historyList">
+                                <p style="text-align:center;color:var(--text-secondary);font-size:0.85rem;">暂无历史记录</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <span>📊</span>
+                    <h2>输出结果</h2>
+                    <div style="margin-left:auto;display:flex;gap:8px;">
+                        <button class="btn btn-secondary btn-sm" type="button" id="copyBtn" title="复制 JSON">📋 复制</button>
+                        <button class="btn btn-secondary btn-sm" type="button" id="downloadBtn" title="下载 JSON">💾 下载</button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="status-bar" id="statusBar">
+                        <div class="status-dot" id="statusDot"></div>
+                        <span id="statusText"></span>
+                    </div>
+
+                    <div class="output-tabs">
+                        <button class="tab-btn active" type="button" data-tab="json">JSON 输出</button>
+                        <button class="tab-btn" type="button" data-tab="log">执行日志</button>
+                    </div>
+
+                    <div class="tab-content active" id="tab-json">
+                        <div class="summary-card" id="summaryCard"></div>
+                        <div class="empty-state" id="emptyState">
+                            <div class="icon">📭</div>
+                            <p>等待执行...<br>配置参数后点击「执行」或按 Ctrl+Enter</p>
+                        </div>
+                        <div class="json-toolbar" id="jsonToolbar" style="display:none;">
+                            <button class="btn btn-secondary btn-sm" type="button" id="expandContentBtn">展开文件内容</button>
+                            <button class="btn btn-secondary btn-sm" type="button" id="collapseContentBtn">折叠文件内容</button>
+                        </div>
+                        <pre class="json-view" id="jsonOutput" style="display:none;"></pre>
+                    </div>
+
+                    <div class="tab-content" id="tab-log">
+                        <textarea class="output-area" id="logOutput" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div style="text-align:center;">
+            <div class="spinner"></div>
+            <p id="loadingText" style="color:var(--text-heading);">正在执行...</p>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const STORAGE_PREFIX = 'repoJsonGenerator.';
+        const COMMAND_DESC = {
+            sync: '增量同步：获取指定 commit 的变更文件及其完整内容',
+            info: '变更分析：获取 commit 信息、diff 统计及变更详情',
+            full: '完整快照：获取指定 commit 下所有文件的完整内容',
+        };
+
+        let currentCommand = 'sync';
+        let executionHistory = [];
+        let lastResult = null;
+        let lastResultJson = '';
+        let contentExpanded = false;
+        let debounceTimers = {};
+
+        const $ = (id) => document.getElementById(id);
+
+        function debounce(key, fn, delay = 500) {
+            clearTimeout(debounceTimers[key]);
+            debounceTimers[key] = setTimeout(fn, delay);
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = $('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function showLoading(show, text = '正在执行...') {
+            $('loadingOverlay').classList.toggle('show', show);
+            $('loadingText').textContent = text;
+            $('executeBtn').disabled = show;
+        }
+
+        function showStatus(success, text) {
+            $('statusBar').style.display = 'flex';
+            $('statusDot').className = `status-dot ${success ? 'success' : 'error'}`;
+            $('statusText').textContent = text;
+        }
+
+        function isValidRepoUrl(url) {
+            try {
+                const u = new URL(url);
+                return ['http:', 'https:', 'git:'].includes(u.protocol) || url.includes('@');
+            } catch {
+                return /^git@[\w.-]+:[\w./-]+\.git$/.test(url);
+            }
+        }
+
+        function saveForm() {
+            const form = {
+                repo: $('repoUrl').value.trim(),
+                branch: $('branch').value.trim(),
+                commit: $('commit').value.trim(),
+                command: currentCommand,
+                filter: $('fileFilter').value.trim(),
+                exclude: $('excludeFilter').value.trim(),
+                maxFiles: parseInt($('maxFiles').value, 10) || 50,
+                versionLimit: parseInt($('versionLimit').value, 10) || 30,
+            };
+            localStorage.setItem(STORAGE_PREFIX + 'form', JSON.stringify(form));
+        }
+
+        function loadForm() {
+            try {
+                const raw = localStorage.getItem(STORAGE_PREFIX + 'form');
+                if (!raw) return;
+                const form = JSON.parse(raw);
+                if (form.repo) $('repoUrl').value = form.repo;
+                if (form.branch) $('branch').value = form.branch;
+                if (form.commit) $('commit').value = form.commit;
+                if (form.filter) $('fileFilter').value = form.filter;
+                if (form.exclude) $('excludeFilter').value = form.exclude;
+                if (form.maxFiles) $('maxFiles').value = form.maxFiles;
+                if (form.versionLimit) $('versionLimit').value = form.versionLimit;
+                if (form.command) selectCommand(form.command, false);
+            } catch (_) {}
+        }
+
+        function saveHistory() {
+            localStorage.setItem(STORAGE_PREFIX + 'history', JSON.stringify(executionHistory));
+        }
+
+        function loadHistoryFromStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_PREFIX + 'history');
+                if (raw) executionHistory = JSON.parse(raw);
+            } catch (_) {
+                executionHistory = [];
+            }
+            renderHistory();
+        }
+
+        function saveLastSummary(item) {
+            try {
+                const payload = JSON.stringify(item);
+                if (payload.length > 1024 * 1024) return;
+                localStorage.setItem(STORAGE_PREFIX + 'lastSummary', payload);
+            } catch (_) {}
+        }
+
+        function loadLastSummary() {
+            try {
+                const raw = localStorage.getItem(STORAGE_PREFIX + 'lastSummary');
+                if (!raw) return;
+                const item = JSON.parse(raw);
+                if (item.summaryHtml) {
+                    $('summaryCard').innerHTML = item.summaryHtml;
+                    $('summaryCard').classList.add('show');
+                    $('emptyState').style.display = 'none';
+                }
+            } catch (_) {}
+        }
+
+        function selectCommand(command, save = true) {
+            currentCommand = command;
+            document.querySelectorAll('.command-btn').forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.command === command);
+            });
+            $('commandDesc').textContent = COMMAND_DESC[command] || '';
+            $('maxFilesGroup').style.display = command === 'info' ? 'none' : 'block';
+            if (save) saveForm();
+        }
+
+        function appendLog(text) {
+            $('logOutput').value += text;
+        }
+
+        function setLog(text) {
+            $('logOutput').value = text;
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach((b) => {
+                b.classList.toggle('active', b.dataset.tab === tabName);
+            });
+            document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
+            $('tab-' + tabName).classList.add('active');
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function highlightJson(jsonStr) {
+            return jsonStr
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"([^"\\]*(?:\\.[^"\\]*)*)"\s*:/g, '<span class="json-key">"$1"</span>:')
+                .replace(/:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/:\s*(-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+                .replace(/:\s*(true|false)/g, ': <span class="json-boolean">$1</span>')
+                .replace(/:\s*(null)/g, ': <span class="json-null">$1</span>');
+        }
+
+        function collapseFileContent(data) {
+            const copy = JSON.parse(JSON.stringify(data));
+            if (Array.isArray(copy.files)) {
+                copy.files = copy.files.map((f) => {
+                    if (f.content && f.content.length > 200) {
+                        return { ...f, content: `[${f.content.length} chars collapsed]` };
+                    }
+                    return f;
+                });
+            }
+            return copy;
+        }
+
+        function renderJsonOutput(data, expand = false) {
+            contentExpanded = expand;
+            const displayData = expand ? data : collapseFileContent(data);
+            const jsonStr = JSON.stringify(displayData, null, 2);
+            lastResultJson = JSON.stringify(data, null, 2);
+            $('jsonOutput').innerHTML = highlightJson(jsonStr);
+            $('jsonOutput').style.display = 'block';
+            $('jsonToolbar').style.display = Array.isArray(data.files) && data.files.some((f) => f.content) ? 'flex' : 'none';
+            $('emptyState').style.display = 'none';
+        }
+
+        function buildSummaryHtml(result, meta) {
+            if (!result.success) {
+                return `<h3>执行失败</h3><p>${escapeHtml(result.error || '未知错误')}</p>`;
+            }
+            const data = result.data || {};
+            const summary = data.summary || {};
+            const source = data.source || {};
+            const items = [
+                ['命令', meta.command],
+                ['耗时', `${meta.duration}s`],
+                ['仓库', source.repository || meta.repo],
+                ['分支', source.branch || meta.branch],
+                ['Commit', (source.commit || meta.commit || '').slice(0, 12)],
+            ];
+            if (summary.files_changed != null) items.push(['变更文件', summary.files_changed]);
+            if (summary.total_additions != null) items.push(['新增行', `+${summary.total_additions}`]);
+            if (summary.total_deletions != null) items.push(['删除行', `-${summary.total_deletions}`]);
+            if (summary.files_processed != null) items.push(['已处理', summary.files_processed]);
+            if (summary.total_files_in_commit != null) items.push(['Commit 文件总数', summary.total_files_in_commit]);
+
+            const grid = items.map(([k, v]) =>
+                `<div class="summary-item"><span>${escapeHtml(k)}</span><strong>${escapeHtml(String(v))}</strong></div>`
+            ).join('');
+            return `<h3>执行摘要</h3><div class="summary-grid">${grid}</div>`;
+        }
+
+        function showResult(result) {
+            lastResult = result;
+            const meta = result.meta || {};
+            const summaryHtml = buildSummaryHtml(result, meta);
+            const card = $('summaryCard');
+            card.innerHTML = summaryHtml;
+            card.className = 'summary-card show' + (result.success ? '' : ' error');
+            saveLastSummary({ summaryHtml, success: result.success, time: Date.now() });
+
+            if (result.success && result.data) {
+                const size = JSON.stringify(result.data).length;
+                renderJsonOutput(result.data, size <= 500 * 1024);
+                showStatus(true, `执行成功 (${meta.duration || 0}s)`);
+                showToast('命令执行成功！');
+            } else {
+                $('jsonOutput').style.display = 'none';
+                $('jsonToolbar').style.display = 'none';
+                $('emptyState').style.display = 'block';
+                $('emptyState').querySelector('p').textContent = result.error || '执行失败，请查看日志';
+                showStatus(false, result.error || '执行失败');
+                showToast(result.error || '执行失败', 'error');
+                switchTab('log');
+            }
+        }
+
+        async function fetchTokenStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                const badge = $('tokenBadge');
+                if (data.hasToken) {
+                    badge.textContent = 'GITHUB_TOKEN 已配置';
+                    badge.className = 'badge ok';
+                } else {
+                    badge.textContent = 'GITHUB_TOKEN 未配置（私有仓库可能失败）';
+                    badge.className = 'badge warn';
+                }
+            } catch {
+                $('tokenBadge').textContent = '无法检测 Token 状态';
+                $('tokenBadge').className = 'badge warn';
+            }
+        }
+
+        async function loadBranches(manual = false) {
+            const repo = $('repoUrl').value.trim();
+            const btn = $('loadBranchBtn');
+            if (!repo) {
+                if (manual) showToast('请先输入仓库地址', 'error');
+                return;
+            }
+            if (!isValidRepoUrl(repo)) {
+                $('repoHint').textContent = '请输入有效的 Git 仓库 URL';
+                $('repoUrl').classList.add('invalid');
+                if (manual) showToast('仓库 URL 格式无效', 'error');
+                return;
+            }
+            $('repoHint').textContent = '';
+            $('repoUrl').classList.remove('invalid');
+
+            btn.classList.add('loading');
+            btn.disabled = true;
+            try {
+                const res = await fetch(`/api/branches?repo=${encodeURIComponent(repo)}`);
+                const result = await res.json();
+                if (!result.success) throw new Error(result.error || '加载分支失败');
+
+                const datalist = $('branchList');
+                datalist.innerHTML = '';
+                const branches = result.branches || [];
+                branches.forEach((b) => {
+                    const opt = document.createElement('option');
+                    opt.value = b;
+                    datalist.appendChild(opt);
+                });
+
+                if (branches.length > 0) {
+                    const current = $('branch').value.trim();
+                    if (!current || !branches.includes(current)) {
+                        const preferred = branches.find((b) => b === 'main' || b === 'master') || branches[0];
+                        $('branch').value = preferred;
+                    }
+                    if (manual) showToast(`已加载 ${branches.length} 个分支`);
+                    debounce('commits', () => loadCommits(false), 300);
+                } else if (manual) {
+                    showToast('未找到远程分支', 'error');
+                }
+                saveForm();
+            } catch (e) {
+                if (manual) showToast(`加载失败: ${e.message}`, 'error');
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        }
+
+        async function loadCommits(manual = false) {
+            const repo = $('repoUrl').value.trim();
+            const branch = $('branch').value.trim();
+            const limit = parseInt($('versionLimit').value, 10) || 30;
+            const btn = $('loadCommitBtn');
+
+            if (!repo || !branch) {
+                if (manual) showToast('请先填写仓库和分支', 'error');
+                return;
+            }
+
+            btn.classList.add('loading');
+            btn.disabled = true;
+            try {
+                const url = `/api/commits?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}&limit=${limit}`;
+                const res = await fetch(url);
+                const result = await res.json();
+                if (!result.success) throw new Error(result.error || '加载版本失败');
+
+                const datalist = $('commitList');
+                datalist.innerHTML = '';
+                const commits = result.commits || [];
+                commits.forEach((c) => {
+                    const opt = document.createElement('option');
+                    opt.value = c.hash;
+                    const label = `${c.short_hash || c.hash.slice(0, 7)} · ${c.message || '(无消息)'} · ${c.date || ''}`;
+                    opt.label = label;
+                    datalist.appendChild(opt);
+                });
+
+                if (manual) showToast(`已加载 ${commits.length} 个版本`);
+                saveForm();
+            } catch (e) {
+                if (manual) showToast(`加载失败: ${e.message}`, 'error');
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        }
+
+        async function executeCommand() {
+            const repo = $('repoUrl').value.trim();
+            const branch = $('branch').value.trim() || 'main';
+            const commit = $('commit').value.trim();
+            const filter = $('fileFilter').value.trim();
+            const exclude = $('excludeFilter').value.trim();
+            const maxFiles = parseInt($('maxFiles').value, 10) || 50;
+
+            if (!repo) {
+                showToast('请输入仓库地址', 'error');
+                return;
+            }
+            if (!isValidRepoUrl(repo)) {
+                $('repoHint').textContent = '请输入有效的 Git 仓库 URL';
+                $('repoUrl').classList.add('invalid');
+                return;
+            }
+
+            const requestData = { command: currentCommand, repo, branch, commit, filter, exclude, maxFiles };
+            saveForm();
+
+            showLoading(true, '正在连接仓库...');
+            setLog(`[${new Date().toLocaleString()}] 开始执行 ${currentCommand}\n`);
+            appendLog(`请求: ${JSON.stringify(requestData, null, 2)}\n\n`);
+
+            try {
+                showLoading(true, '正在克隆仓库并生成 JSON...');
+                const start = Date.now();
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData),
+                });
+                const result = await response.json();
+                const duration = ((Date.now() - start) / 1000).toFixed(1);
+
+                appendLog(`响应: HTTP ${response.status}\n`);
+                appendLog(`耗时: ${duration}s\n`);
+                if (result.meta) appendLog(`Meta: ${JSON.stringify(result.meta, null, 2)}\n\n`);
+
+                if (result.success) {
+                    appendLog('✅ 执行成功\n');
+                } else {
+                    appendLog(`❌ 执行失败: ${result.error || '未知错误'}\n`);
+                }
+
+                showResult(result);
+                addToHistory(currentCommand, repo, branch, !!result.success, result.meta?.duration || duration);
+                switchTab('json');
+            } catch (error) {
+                appendLog(`❌ 网络错误: ${error.message}\n`);
+                showStatus(false, `网络错误: ${error.message}`);
+                showToast('请求失败，请检查服务器连接', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function clearOutput() {
+            $('jsonOutput').innerHTML = '';
+            $('jsonOutput').style.display = 'none';
+            $('logOutput').value = '';
+            $('emptyState').style.display = 'block';
+            $('emptyState').querySelector('p').innerHTML = '等待执行...<br>配置参数后点击「执行」或按 Ctrl+Enter';
+            $('summaryCard').classList.remove('show');
+            $('summaryCard').innerHTML = '';
+            $('jsonToolbar').style.display = 'none';
+            $('statusBar').style.display = 'none';
+            lastResult = null;
+            lastResultJson = '';
+        }
+
+        function copyOutput() {
+            const text = lastResultJson || $('jsonOutput').textContent;
+            if (!text) {
+                showToast('没有可复制的内容', 'error');
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板')).catch(() => showToast('复制失败', 'error'));
+        }
+
+        function downloadOutput() {
+            const text = lastResultJson || $('jsonOutput').textContent;
+            if (!text) {
+                showToast('没有可下载的内容', 'error');
+                return;
+            }
+            const blob = new Blob([text], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `generator-${currentCommand}-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('文件已下载');
+        }
+
+        function addToHistory(command, repo, branch, success, duration) {
+            executionHistory.unshift({
+                id: Date.now().toString(),
+                command,
+                repo,
+                branch,
+                success,
+                duration,
+                time: new Date().toLocaleString('zh-CN'),
+            });
+            if (executionHistory.length > 20) executionHistory.pop();
+            saveHistory();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const list = $('historyList');
+            if (executionHistory.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:var(--text-secondary);font-size:0.85rem;">暂无历史记录</p>';
+                return;
+            }
+            list.innerHTML = executionHistory.map((item) => `
+                <div class="history-item" data-id="${escapeHtml(item.id)}">
+                    <div class="time">${escapeHtml(item.time)}</div>
+                    <div class="cmd">${escapeHtml(item.command)} - ${escapeHtml(item.branch)}</div>
+                    <div class="status ${item.success ? 'ok' : 'err'}">${item.success ? '✅ 成功' : '❌ 失败'} (${escapeHtml(String(item.duration))}s)</div>
+                </div>
+            `).join('');
+        }
+
+        function restoreHistoryItem(id) {
+            const item = executionHistory.find((h) => h.id === id);
+            if (!item) return;
+            $('repoUrl').value = item.repo;
+            $('branch').value = item.branch;
+            selectCommand(item.command);
+            saveForm();
+            debounce('branches', () => loadBranches(false), 200);
+            showToast('已恢复历史配置');
+        }
+
+        function bindEvents() {
+            document.querySelectorAll('.command-btn').forEach((btn) => {
+                btn.addEventListener('click', () => selectCommand(btn.dataset.command));
+            });
+
+            document.querySelectorAll('.tab-btn').forEach((btn) => {
+                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+            });
+
+            $('optionsToggle').addEventListener('click', () => {
+                $('optionsToggle').classList.toggle('open');
+                $('optionsPanel').classList.toggle('show');
+            });
+
+            $('historyToggle').addEventListener('click', () => {
+                $('historyToggle').classList.toggle('open');
+                $('historyPanel').classList.toggle('show');
+            });
+
+            $('executeBtn').addEventListener('click', executeCommand);
+            $('clearBtn').addEventListener('click', clearOutput);
+            $('copyBtn').addEventListener('click', copyOutput);
+            $('downloadBtn').addEventListener('click', downloadOutput);
+            $('loadBranchBtn').addEventListener('click', () => loadBranches(true));
+            $('loadCommitBtn').addEventListener('click', () => loadCommits(true));
+
+            $('expandContentBtn').addEventListener('click', () => {
+                if (lastResult?.data) renderJsonOutput(lastResult.data, true);
+            });
+            $('collapseContentBtn').addEventListener('click', () => {
+                if (lastResult?.data) renderJsonOutput(lastResult.data, false);
+            });
+
+            $('historyList').addEventListener('click', (e) => {
+                const item = e.target.closest('.history-item');
+                if (item?.dataset.id) restoreHistoryItem(item.dataset.id);
+            });
+
+            $('repoUrl').addEventListener('input', () => {
+                $('repoHint').textContent = '';
+                $('repoUrl').classList.remove('invalid');
+                saveForm();
+                debounce('branches', () => loadBranches(false), 600);
+            });
+
+            $('repoUrl').addEventListener('blur', () => {
+                if ($('repoUrl').value.trim()) loadBranches(false);
+            });
+
+            $('branch').addEventListener('change', () => {
+                saveForm();
+                debounce('commits', () => loadCommits(false), 400);
+            });
+
+            $('branch').addEventListener('input', saveForm);
+            $('commit').addEventListener('input', saveForm);
+            $('fileFilter').addEventListener('input', saveForm);
+            $('excludeFilter').addEventListener('input', saveForm);
+            $('maxFiles').addEventListener('change', saveForm);
+            $('versionLimit').addEventListener('change', saveForm);
+
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    executeCommand();
+                }
+                if (e.key === 'Escape' && !$('executeBtn').disabled) {
+                    showLoading(false);
+                }
+            });
+        }
+
+        function init() {
+            bindEvents();
+            loadForm();
+            loadHistoryFromStorage();
+            loadLastSummary();
+            fetchTokenStatus();
+            if ($('repoUrl').value.trim()) {
+                debounce('branches', () => loadBranches(false), 300);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

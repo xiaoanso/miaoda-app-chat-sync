@@ -608,10 +608,12 @@ python3 scripts/generator.py --help
 **Version 3.0.0 Note**: The tool now uses a modular architecture. All functionality remains the same, but the codebase is better organized for maintenance and extension.
 
 Review the help output to understand:
-- Available subcommands (`sync`, `info`)
+- Available subcommands (`sync`, `info`, `full` for core operations; `branches`, `versions` as optional helpers)
 - Required parameters (`--repo`, `--commit`, etc.)
-- Optional parameters (`--filter`, `--exclude`, `--max-files`, `--output`, `--no-instructions`)
+- Optional parameters (`--filter`, `--exclude`, `--max-files`, `--output`, `--no-instructions`, `--limit` for versions)
 - Usage examples for different scenarios
+
+**Auxiliary helpers**: Use `branches` to list remote branches and `versions` to list recent commits on a branch before running `sync` / `info` / `full`. These map to `get_branches()` and `get_branch_versions()` in `scripts/git/repository.py` and return metadata only (no file content).
 
 ### Step 1: User Provides Repository URL
 

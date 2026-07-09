@@ -6,6 +6,7 @@
 - [基本概念](#基本概念)
 - [如何向 Agent 提问](#如何向-agent-提问)
 - [三种核心命令详解](#三种核心命令详解)
+- [辅助命令（可选）](#辅助命令可选)
 - [完整使用示例](#完整使用示例)
 - [私有仓库配置](#私有仓库配置)
 - [高级用法](#高级用法)
@@ -22,6 +23,10 @@
 - 🔄 增量同步代码变更（sync 命令）
 - 📊 查看 commit 信息和变更统计（info 命令）
 - 📦 获取完整仓库快照（full 命令）
+
+**辅助能力（可选）：**
+- 🌿 查询仓库分支列表（`branches` 命令）
+- 📌 查询分支最近版本/commit（`versions` 命令）
 
 ---
 
@@ -183,6 +188,96 @@ python3 scripts/generator.py full \
 
 ---
 
+## 辅助命令（可选）
+
+以下两个命令为**辅助函数**，不生成 JSON 同步指令，仅用于在执行 `sync` / `info` / `full` 之前，帮助确认分支名称和 commit 版本。
+
+对应实现位于 `scripts/git/repository.py`：
+- `get_branches()` — 获取远程分支列表
+- `get_branch_versions()` — 获取指定分支的最近版本列表
+
+### 4️⃣ branches 命令 - 查询分支列表
+
+**用途：** 列出仓库的远程分支，无需完整 clone。
+
+**典型场景：**
+- 不确定仓库有哪些分支
+- 在 Web UI 中加载分支下拉选项
+- 为后续 sync/info/full 命令确认 `--branch` 参数
+
+**对话示例：**
+
+> "列出这个仓库有哪些分支：https://github.com/username/my-project"
+
+**Agent 会执行：**
+```bash
+python3 scripts/generator.py branches \
+  --repo https://github.com/username/my-project
+```
+
+**输出示例：**
+```json
+{
+  "repository": "https://github.com/username/my-project",
+  "branches": ["main", "develop", "feature/login"],
+  "count": 3
+}
+```
+
+---
+
+### 5️⃣ versions 命令 - 查询分支最近版本
+
+**用途：** 获取指定分支最近的 commit 版本列表，可指定返回数量。
+
+**典型场景：**
+- 不确定要同步哪个 commit
+- 在 Web UI 中加载 commit 下拉选项
+- 为后续 sync/info/full 命令确认 `--commit` 参数
+
+**对话示例：**
+
+> "查看 https://github.com/username/my-project 的 main 分支最近 10 个 commit"
+
+**Agent 会执行：**
+```bash
+python3 scripts/generator.py versions \
+  --repo https://github.com/username/my-project \
+  --branch main \
+  --limit 10
+```
+
+**参数说明：**
+
+| 参数 | 必需 | 说明 | 默认值 |
+|------|------|------|--------|
+| `--repo` | ✅ | Git 仓库 URL | — |
+| `--branch` | ✅ | 分支名称 | — |
+| `--limit` | ❌ | 最近版本数量（1–100） | 30 |
+| `--output` | ❌ | 保存 JSON 到文件 | 输出到终端 |
+
+**输出示例：**
+```json
+{
+  "repository": "https://github.com/username/my-project",
+  "branch": "main",
+  "limit": 10,
+  "versions": [
+    {
+      "hash": "abc123def4567890abcdef1234567890abcdef12",
+      "short_hash": "abc123d",
+      "message": "fix: update login flow",
+      "date": "2026-07-09T10:00:00+08:00"
+    }
+  ],
+  "count": 1
+}
+```
+
+> **说明：** `versions` 与 `sync` / `info` / `full` 不同，只返回元数据，不包含文件内容。
+
+---
+
 ## 完整使用示例
 
 ### 示例 1：同步最新代码（最简单）
@@ -275,7 +370,33 @@ python3 scripts/generator.py sync \
 
 ---
 
-### 示例 7：获取纯 JSON 输出
+### 示例 7：先查询分支和版本，再执行同步
+
+**您对 Agent 说：**
+> "先列出 https://github.com/username/my-project 的分支，再查看 main 分支最近 5 个 commit，然后同步最新的那个"
+
+**Agent 会自动执行：**
+```bash
+# 1. 辅助：查询分支
+python3 scripts/generator.py branches \
+  --repo https://github.com/username/my-project
+
+# 2. 辅助：查询最近版本
+python3 scripts/generator.py versions \
+  --repo https://github.com/username/my-project \
+  --branch main \
+  --limit 5
+
+# 3. 核心：执行同步（使用上一步得到的 commit hash）
+python3 scripts/generator.py sync \
+  --repo https://github.com/username/my-project \
+  --branch main \
+  --commit abc123def456
+```
+
+---
+
+### 示例 8：获取纯 JSON 输出
 
 **您对 Agent 说：**
 > "导出纯 JSON 格式的完整代码快照到 snapshot.json"
@@ -446,6 +567,8 @@ python3 scripts/generator.py --help
 python3 scripts/generator.py sync --help
 python3 scripts/generator.py info --help
 python3 scripts/generator.py full --help
+python3 scripts/generator.py branches --help
+python3 scripts/generator.py versions --help
 ```
 
 ---
@@ -484,7 +607,7 @@ python3 scripts/generator.py full --help
 ### ✅ 最佳实践
 
 1. **使用自然语言**：只需用自然语言描述需求，无需记忆命令行参数
-2. **提供完整信息**：确保包含仓库 URL 和分支名称
+2. **提供完整信息**：确保包含仓库 URL 和分支名称；不确定时先用 `branches` / `versions` 辅助查询
 3. **合理设置过滤**：对于大型项目，使用 `--filter` 和 `--exclude` 缩小范围
 4. **控制文件数量**：使用 `--max-files` 避免一次性处理过多文件
 5. **定期更新 Token**：如果 Token 过期，及时生成新的 Token

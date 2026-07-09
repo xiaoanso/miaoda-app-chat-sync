@@ -727,3 +727,126 @@ class RepoJSONGenerator:
                 'rules': prompt_config['rules'],
                 'files': files_list
             }
+
+    def resolve_latest_commit(self, repo_url: str, branch: str) -> str:
+        """Resolve the latest commit hash on a branch."""
+        with temp_directory(prefix='github-latest-') as temp_dir:
+            self.clone_repo(repo_url, temp_dir, branch=branch)
+            cmd = ['git', '-C', temp_dir, 'rev-parse', 'HEAD']
+            result = self._execute_git_command(cmd, cwd=temp_dir, timeout=10)
+            if result.returncode != 0:
+                raise Exception('Failed to get latest commit')
+            return result.stdout.strip()
+
+    def get_branches(self, repo_url: str) -> Dict:
+        """
+        List remote branches for a repository without cloning.
+
+        Args:
+            repo_url: Git repository URL
+
+        Returns:
+            Dict with repository URL and branch names
+        """
+        auth_url = self._make_authenticated_url(repo_url)
+        cmd = ['git', 'ls-remote', '--heads', auth_url]
+        result = self._execute_git_command(cmd, cwd=os.getcwd(), timeout=30)
+
+        if result.returncode != 0:
+            error_msg = SensitiveInfoHandler.redact(result.stderr.strip() or 'Failed to get branches')
+            raise Exception(error_msg)
+
+        branches: List[str] = []
+        for line in result.stdout.strip().split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split('\t')
+            if len(parts) != 2:
+                continue
+            ref = parts[1]
+            if ref.startswith('refs/heads/'):
+                branches.append(ref[len('refs/heads/'):])
+
+        seen = set()
+        unique_branches = []
+        for branch in branches:
+            if branch not in seen:
+                seen.add(branch)
+                unique_branches.append(branch)
+
+        return {
+            'repository': SensitiveInfoHandler.redact_url(repo_url),
+            'branches': unique_branches,
+            'count': len(unique_branches),
+        }
+
+    def get_branch_versions(self, repo_url: str, branch: str, limit: int = 30) -> Dict:
+        """
+        Get recent commit versions for a specific branch.
+
+        Args:
+            repo_url: Git repository URL
+            branch: Branch name
+            limit: Maximum number of recent versions to return (default: 30, max: 100)
+
+        Returns:
+            Dict with repository, branch, limit, and version list
+        """
+        limit = max(1, min(int(limit), 100))
+
+        with temp_directory(prefix='git-versions-') as temp_dir:
+            auth_url = self._make_authenticated_url(repo_url)
+
+            subprocess.run(['git', 'init'], cwd=temp_dir, capture_output=True, timeout=30)
+            subprocess.run(
+                ['git', 'remote', 'add', 'origin', auth_url],
+                cwd=temp_dir,
+                capture_output=True,
+                timeout=30,
+            )
+
+            cmd = ['git', '-C', temp_dir, 'fetch', '--depth', str(limit), 'origin', branch]
+            result = self._execute_git_command(cmd, cwd=temp_dir, timeout=120)
+            if result.returncode != 0:
+                error_msg = SensitiveInfoHandler.redact(result.stderr.strip() or f'Failed to fetch branch {branch}')
+                raise Exception(error_msg)
+
+            cmd = ['git', '-C', temp_dir, 'checkout', '-f', '-B', branch, f'origin/{branch}']
+            result = self._execute_git_command(cmd, cwd=temp_dir, timeout=60)
+            if result.returncode != 0:
+                raise Exception(f'Failed to checkout branch {branch}')
+
+            format_str = '%H||%h||%s||%aI'
+            cmd = [
+                'git', '-C', temp_dir, 'log',
+                f'--format={format_str}',
+                '--no-decorate',
+                f'-n{limit}',
+            ]
+            result = self._execute_git_command(cmd, cwd=temp_dir, timeout=30)
+            if result.returncode != 0:
+                raise Exception('Failed to get branch versions')
+
+            versions: List[Dict] = []
+            for line in result.stdout.strip().split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split('||')
+                if len(parts) < 4:
+                    continue
+                versions.append({
+                    'hash': parts[0],
+                    'short_hash': parts[1],
+                    'message': parts[2],
+                    'date': parts[3],
+                })
+
+            return {
+                'repository': SensitiveInfoHandler.redact_url(repo_url),
+                'branch': branch,
+                'limit': limit,
+                'versions': versions,
+                'count': len(versions),
+            }
