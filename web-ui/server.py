@@ -28,6 +28,18 @@ from git.repository import RepoJSONGenerator
 class GeneratorHandler(BaseHTTPRequestHandler):
     """HTTP request handler for Generator API"""
 
+    def do_OPTIONS(self):
+        """Handle CORS preflight for extension requests."""
+        parsed_path = urlparse(self.path)
+        if parsed_path.path.startswith('/api/'):
+            self.send_response(204)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+            self.end_headers()
+        else:
+            self.send_error(404)
+
     def do_GET(self):
         """Handle GET requests - serve the web interface and API"""
         parsed_path = urlparse(self.path)

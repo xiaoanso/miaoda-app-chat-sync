@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repo JSON Generator - 设置</title>
+    <style>
+        :root {
+            --bg: #1a1b26;
+            --bg2: #24283b;
+            --text: #a9b1d6;
+            --heading: #c0caf5;
+            --accent: #7aa2f7;
+            --green: #9ece6a;
+            --red: #f7768e;
+            --border: #292e42;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+            background: #16161e;
+            color: var(--text);
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+        .wrap { max-width: 520px; margin: 0 auto; }
+        h1 { color: var(--heading); font-size: 1.5rem; margin-bottom: 8px; }
+        p.desc { font-size: 0.9rem; margin-bottom: 24px; opacity: 0.8; }
+        .card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+        label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--accent); }
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--accent); }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        .btn-primary { background: var(--accent); color: #1a1b26; }
+        .btn-secondary { background: var(--bg2); color: var(--text); border: 1px solid var(--border); }
+        .status { margin-top: 12px; font-size: 0.85rem; padding: 10px; border-radius: 8px; display: none; }
+        .status.ok { display: block; background: rgba(158, 206, 106, 0.15); color: var(--green); border: 1px solid var(--green); }
+        .status.err { display: block; background: rgba(247, 118, 142, 0.15); color: var(--red); border: 1px solid var(--red); }
+        code { background: var(--bg2); padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; }
+        .hint { font-size: 0.8rem; opacity: 0.7; margin-top: -10px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>⚙️ Repo JSON Generator 设置</h1>
+        <p class="desc">扩展作为前端客户端，连接你本地启动的 Python 后端服务。</p>
+
+        <div class="card">
+            <label for="serverUrl">后端服务地址</label>
+            <input type="url" id="serverUrl" placeholder="http://localhost:8080">
+            <p class="hint">须与 <code>python3 web-ui/server.py [port]</code> 启动的地址一致</p>
+
+            <label for="defaultCommand">默认命令</label>
+            <select id="defaultCommand">
+                <option value="sync">sync - 增量同步</option>
+                <option value="info">info - 变更分析</option>
+                <option value="full">full - 完整快照</option>
+            </select>
+
+            <label for="versionLimit">版本加载数量</label>
+            <input type="number" id="versionLimit" min="1" max="100" value="30">
+
+            <button class="btn btn-primary" id="saveBtn">保存设置</button>
+            <button class="btn btn-secondary" id="testBtn">测试连接</button>
+            <div class="status" id="statusMsg"></div>
+        </div>
+
+        <div class="card">
+            <h2 style="font-size:1rem;color:var(--heading);margin-bottom:12px;">快速开始</h2>
+            <ol style="padding-left:20px;font-size:0.85rem;line-height:1.8;">
+                <li>在项目根目录运行：<code>python3 web-ui/server.py</code></li>
+                <li>加载本扩展到 Chrome</li>
+                <li>浏览 GitHub/GitLab 页面，点击扩展图标打开弹窗</li>
+                <li>配置参数后执行，复制或下载 JSON 文件</li>
+            </ol>
+        </div>
+    </div>
+    <script type="module" src="options.js"></script>
+</body>
+</html>

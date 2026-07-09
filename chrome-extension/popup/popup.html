@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=420">
+    <title>Repo JSON Generator</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📦 Repo <span>JSON</span></h1>
+            <div class="header-meta">
+                <span class="badge" id="serverBadge">检测后端...</span>
+                <span class="badge" id="tokenBadge">Token</span>
+            </div>
+        </header>
+
+        <div class="offline-banner" id="offlineBanner">
+            后端未连接。请先运行：<code>python3 web-ui/server.py</code>
+        </div>
+
+        <div class="main-tabs">
+            <button class="main-tab-btn active" type="button" data-view="config">配置</button>
+            <button class="main-tab-btn" type="button" data-view="result">结果</button>
+            <button class="main-tab-btn" type="button" data-view="settings">设置</button>
+        </div>
+
+        <div class="main-view active" id="view-config">
+            <div class="source-bar">
+                <span class="source-tag manual" id="sourceTag">手动输入</span>
+                <button class="btn btn-secondary btn-sm" type="button" id="fillFromPageBtn">从页面填充</button>
+            </div>
+
+            <div class="panel">
+                <div class="panel-body">
+                    <div class="command-selector">
+                        <button class="command-btn active" data-command="sync" type="button">
+                            <span class="cmd-icon">🔄</span>Sync
+                        </button>
+                        <button class="command-btn" data-command="info" type="button">
+                            <span class="cmd-icon">ℹ️</span>Info
+                        </button>
+                        <button class="command-btn" data-command="full" type="button">
+                            <span class="cmd-icon">📋</span>Full
+                        </button>
+                    </div>
+                    <p class="command-desc" id="commandDesc">增量同步：获取指定 commit 的变更文件及其完整内容</p>
+
+                    <div class="form-group">
+                        <label for="repoUrl">仓库地址</label>
+                        <input type="url" id="repoUrl" placeholder="https://github.com/user/repo" autocomplete="off">
+                        <div class="field-hint" id="repoHint"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="branch">分支</label>
+                        <div class="input-with-button">
+                            <input type="text" id="branch" list="branchList" placeholder="main" value="main" autocomplete="off">
+                            <datalist id="branchList"></datalist>
+                            <button class="btn-load" type="button" id="loadBranchBtn" title="加载分支">🔄</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="commit">Commit（可选）</label>
+                        <div class="input-with-button">
+                            <input type="text" id="commit" list="commitList" placeholder="留空则最新" autocomplete="off">
+                            <datalist id="commitList"></datalist>
+                            <button class="btn-load" type="button" id="loadCommitBtn" title="加载版本">🔄</button>
+                        </div>
+                    </div>
+
+                    <div class="options-toggle" id="optionsToggle">
+                        <span class="arrow">▶</span><span>高级选项</span>
+                    </div>
+                    <div class="options-panel" id="optionsPanel">
+                        <div class="form-group">
+                            <label for="fileFilter">文件过滤</label>
+                            <input type="text" id="fileFilter" placeholder='*.py,*.js'>
+                        </div>
+                        <div class="form-group">
+                            <label for="excludeFilter">排除文件</label>
+                            <input type="text" id="excludeFilter" placeholder='*.md,test/*'>
+                        </div>
+                        <div class="form-group" id="maxFilesGroup">
+                            <label for="maxFiles">最大文件数</label>
+                            <input type="number" id="maxFiles" value="50" min="1" max="500">
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" id="executeBtn" type="button">🚀 执行</button>
+                        <button class="btn btn-secondary" id="clearBtn" type="button" title="清空">🗑️</button>
+                    </div>
+
+                    <div class="options-toggle" id="historyToggle" style="margin-top:12px;">
+                        <span class="arrow">▶</span><span>执行历史</span>
+                    </div>
+                    <div class="options-panel" id="historyPanel">
+                        <div class="history-list" id="historyList">
+                            <p class="empty-hint">暂无历史记录</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-view" id="view-result">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>输出结果</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary btn-sm" type="button" id="copyBtn" title="复制">📋</button>
+                        <button class="btn btn-secondary btn-sm" type="button" id="downloadBtn" title="下载">💾</button>
+                    </div>
+                </div>
+                <div class="panel-body compact">
+                    <div class="status-bar" id="statusBar">
+                        <div class="status-dot" id="statusDot"></div>
+                        <span id="statusText"></span>
+                    </div>
+
+                    <div class="output-tabs">
+                        <button class="tab-btn active" type="button" data-tab="json">JSON</button>
+                        <button class="tab-btn" type="button" data-tab="log">日志</button>
+                    </div>
+
+                    <div class="tab-content active" id="tab-json">
+                        <div class="summary-card" id="summaryCard"></div>
+                        <div class="empty-state" id="emptyState">
+                            <div class="icon">📭</div>
+                            <p>等待执行...</p>
+                        </div>
+                        <div class="json-toolbar" id="jsonToolbar" style="display:none;">
+                            <button class="btn btn-secondary btn-sm" type="button" id="expandContentBtn">展开</button>
+                            <button class="btn btn-secondary btn-sm" type="button" id="collapseContentBtn">折叠</button>
+                        </div>
+                        <pre class="json-view" id="jsonOutput" style="display:none;"></pre>
+                    </div>
+
+                    <div class="tab-content" id="tab-log">
+                        <textarea class="output-area" id="logOutput" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-view" id="view-settings">
+            <div class="panel">
+                <div class="panel-body">
+                    <p class="settings-desc">扩展作为前端客户端，连接你本地启动的 Python 后端服务。</p>
+
+                    <div class="form-group">
+                        <label for="settingsServerUrl">后端服务地址</label>
+                        <input type="url" id="settingsServerUrl" placeholder="http://localhost:8080" autocomplete="off">
+                        <div class="field-hint">须与 <code>python3 web-ui/server.py [port]</code> 启动地址一致</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="settingsDefaultCommand">默认命令</label>
+                        <select id="settingsDefaultCommand">
+                            <option value="sync">sync - 增量同步</option>
+                            <option value="info">info - 变更分析</option>
+                            <option value="full">full - 完整快照</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="settingsVersionLimit">版本加载数量</label>
+                        <input type="number" id="settingsVersionLimit" value="30" min="1" max="100">
+                        <div class="field-hint">加载 commit 列表时的默认条数</div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" type="button" id="saveSettingsBtn">保存设置</button>
+                        <button class="btn btn-secondary" type="button" id="testSettingsBtn">测试连接</button>
+                    </div>
+
+                    <div class="settings-status" id="settingsStatus"></div>
+
+                    <div class="settings-hint">
+                        <p class="settings-hint-title">快速开始</p>
+                        <ol>
+                            <li>运行 <code>python3 web-ui/server.py</code></li>
+                            <li>保存后端地址并测试连接</li>
+                            <li>在 Git 仓库页打开弹窗，配置后执行</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div style="text-align:center;">
+            <div class="spinner"></div>
+            <p id="loadingText">正在执行...</p>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script type="module" src="popup.js"></script>
+</body>
+</html>
