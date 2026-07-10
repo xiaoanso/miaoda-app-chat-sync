@@ -7,8 +7,10 @@ branch detection, and commit management.
 """
 
 import os
+import re
 import subprocess
 from typing import Dict, List, Optional, Tuple
+from urllib.parse import urlparse, urlunparse
 
 from core.temp_manager import temp_directory
 from core.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError, with_retry
@@ -29,8 +31,20 @@ class RepoJSONGenerator:
     Caller is responsible for cleanup after use.
     """
     
-    def __init__(self, token: str = None, verbose: bool = False):
-        self.token = token or os.environ.get('GITHUB_TOKEN')
+    def __init__(
+        self,
+        token: str = None,
+        gitlab_token: str = None,
+        bitbucket_token: str = None,
+        verbose: bool = False,
+    ):
+        self.tokens = {
+            'github': token or os.environ.get('GITHUB_TOKEN'),
+            'gitlab': gitlab_token or os.environ.get('GITLAB_TOKEN'),
+            'bitbucket': bitbucket_token or os.environ.get('BITBUCKET_TOKEN'),
+        }
+        # Backward-compatible alias used by existing call sites
+        self.token = self.tokens['github']
         self.verbose = verbose
         self.logger = SecureLogger(verbose=verbose)
         
@@ -43,7 +57,7 @@ class RepoJSONGenerator:
     def _get_git_env(self) -> Dict[str, str]:
         """Get environment variables for git commands with authentication"""
         env = os.environ.copy()
-        if self.token:
+        if any(self.tokens.values()):
             env['GIT_ASKPASS'] = 'echo'
             env['GIT_TERMINAL_PROMPT'] = '0'
             # Don't expose token in environment for subprocess
@@ -93,26 +107,83 @@ class RepoJSONGenerator:
             commit_message = commit_message + '\n\n' + body.strip()
         return commit_message
     
-    def _make_authenticated_url(self, repo_url: str) -> str:
-        """Convert repo URL to use authentication if token is provided"""
-        if not self.token or 'github.com' not in repo_url:
-            return repo_url
-        
-        # Remove .git suffix for consistency
-        repo_url = repo_url.rstrip('/')
-        if repo_url.endswith('.git'):
-            repo_url = repo_url[:-4]
-        
-        if '@' in repo_url and '://' in repo_url:
-            parts = repo_url.split('://')
-            # Re-add token
-            return f"{parts[0]}://x-access-token:{self.token}@{parts[1].split('@')[1]}"
-        
-        if repo_url.startswith('https://'):
-            return repo_url.replace('https://', f'https://x-access-token:{self.token}@')
-        elif repo_url.startswith('http://'):
-            return repo_url.replace('http://', f'https://x-access-token:{self.token}@')
+    def _normalize_repo_url(self, repo_url: str) -> str:
+        """Convert SSH/scp-style Git URLs to HTTPS for server-side operations."""
+        repo_url = repo_url.strip()
+
+        scp_match = re.match(r'^git@([^:]+):(.+)$', repo_url)
+        if scp_match:
+            host, path = scp_match.groups()
+            return f'https://{host}/{path.strip("/")}'
+
+        if repo_url.startswith('ssh://'):
+            parsed = urlparse(repo_url)
+            if parsed.hostname:
+                path = parsed.path.lstrip('/')
+                return f'https://{parsed.hostname}/{path}'
+
         return repo_url
+
+    def _strip_url_credentials(self, repo_url: str) -> str:
+        """Remove embedded credentials from HTTP(S) URLs."""
+        parsed = urlparse(repo_url)
+        if parsed.scheme not in ('http', 'https') or not parsed.hostname:
+            return repo_url
+
+        port = f':{parsed.port}' if parsed.port else ''
+        clean_netloc = f'{parsed.hostname}{port}'
+        return urlunparse((
+            parsed.scheme,
+            clean_netloc,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        ))
+
+    def _token_for_host(self, hostname: str) -> Optional[str]:
+        host = hostname.lower()
+        if 'github' in host:
+            return self.tokens.get('github')
+        if 'gitlab' in host:
+            return self.tokens.get('gitlab')
+        if 'bitbucket' in host:
+            return self.tokens.get('bitbucket')
+        return None
+
+    def _credential_user_for_host(self, hostname: str) -> str:
+        host = hostname.lower()
+        if 'github' in host:
+            return 'x-access-token'
+        if 'gitlab' in host:
+            return 'oauth2'
+        if 'bitbucket' in host:
+            return 'x-token-auth'
+        return 'token'
+
+    def _make_authenticated_url(self, repo_url: str) -> str:
+        """Normalize SSH/HTTPS URLs and inject platform token for private repos."""
+        repo_url = self._strip_url_credentials(self._normalize_repo_url(repo_url))
+        parsed = urlparse(repo_url)
+        if parsed.scheme not in ('http', 'https') or not parsed.hostname:
+            return repo_url
+
+        token = self._token_for_host(parsed.hostname)
+        if not token:
+            return repo_url
+
+        cred_user = self._credential_user_for_host(parsed.hostname)
+        port = f':{parsed.port}' if parsed.port else ''
+        netloc = f'{cred_user}:{token}@{parsed.hostname}{port}'
+        scheme = 'https' if parsed.scheme == 'http' else parsed.scheme
+        return urlunparse((
+            scheme,
+            netloc,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        ))
     
     def _log_operation(self, operation: str, *args, **kwargs):
         """Log operation with sensitive data redacted."""

@@ -1,12 +1,16 @@
 import {
   getSettings,
   setSettings,
+  getUserTokens,
+  setUserTokens,
+  readUserTokensFromForm,
   checkServerStatus,
   fetchBranches,
   fetchCommits,
   generateJson,
 } from '../lib/api.js';
 import { storageGet, storageSet } from '../lib/storage.js';
+import { initTokenHelp } from '../lib/token-help.js';
 
 const COMMAND_DESC = {
   sync: '增量同步：获取指定 commit 的变更文件及其完整内容',
@@ -189,9 +193,21 @@ function switchMainView(viewName) {
 
 async function loadSettingsPanel() {
   const settings = await getSettings();
+  const tokens = await getUserTokens();
   $('settingsServerUrl').value = settings.serverUrl;
   $('settingsDefaultCommand').value = settings.defaultCommand;
   $('settingsVersionLimit').value = settings.versionLimit;
+  $('settingsGithubToken').value = tokens.github;
+  $('settingsGitlabToken').value = tokens.gitlab;
+  $('settingsBitbucketToken').value = tokens.bitbucket;
+}
+
+function readSettingsFormTokens() {
+  return readUserTokensFromForm({
+    githubToken: $('settingsGithubToken').value,
+    gitlabToken: $('settingsGitlabToken').value,
+    bitbucketToken: $('settingsBitbucketToken').value,
+  });
 }
 
 function showSettingsStatus(ok, msg) {
@@ -211,6 +227,7 @@ async function saveSettings() {
   }
 
   await setSettings({ serverUrl: serverUrlInput, defaultCommand, versionLimit: limit });
+  await setUserTokens(readSettingsFormTokens());
   serverUrl = serverUrlInput;
   versionLimit = limit;
   selectCommand(defaultCommand, false);
@@ -227,14 +244,14 @@ async function testSettingsConnection() {
   }
 
   showSettingsStatus(true, '正在测试连接...');
-  const status = await checkServerStatus(serverUrlInput);
+  const status = await checkServerStatus(serverUrlInput, readSettingsFormTokens());
   if (status.online) {
     showSettingsStatus(
       true,
-      `连接成功！GITHUB_TOKEN ${status.hasToken ? '已配置' : '未配置（私有仓库可能失败）'}`
+      `连接成功！${status.summary || (status.hasToken ? 'Token 已配置' : 'Token 未配置（私有仓库可能失败）')}`
     );
   } else {
-    showSettingsStatus(false, '连接失败。请确认已运行 python3 web-ui/server.py');
+    showSettingsStatus(false, '连接失败。请确认远程后端服务已启动，或检查后端地址');
   }
 }
 
@@ -356,10 +373,10 @@ async function refreshServerStatus() {
     executeBtn.disabled = false;
 
     if (status.hasToken) {
-      tokenBadge.textContent = 'GITHUB_TOKEN 已配置';
+      tokenBadge.textContent = status.summary || 'Token 已配置';
       tokenBadge.className = 'badge ok';
     } else {
-      tokenBadge.textContent = 'GITHUB_TOKEN 未配置';
+      tokenBadge.textContent = status.summary || 'Token 未配置';
       tokenBadge.className = 'badge warn';
     }
   } else {
@@ -520,7 +537,7 @@ async function loadCommits(manual = false) {
 
 async function executeCommand() {
   if (!serverOnline) {
-    showToast('后端未连接，请先启动 server.py', 'error');
+    showToast('后端未连接，请检查远程服务或设置中的后端地址', 'error');
     return;
   }
 
@@ -741,6 +758,14 @@ function bindEvents() {
   $('saveSettingsBtn').addEventListener('click', saveSettings);
   $('testSettingsBtn').addEventListener('click', testSettingsConnection);
 
+  initTokenHelp({
+    overlay: 'tokenHelpOverlay',
+    title: 'tokenHelpTitle',
+    body: 'tokenHelpBody',
+    link: 'tokenHelpLink',
+    close: 'tokenHelpClose',
+  });
+
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
@@ -758,6 +783,9 @@ function bindEvents() {
       if (changes.defaultCommand && changes.defaultCommand.newValue) {
         selectCommand(changes.defaultCommand.newValue, false);
       }
+    }
+    if (area === 'local' && (changes.githubToken || changes.gitlabToken || changes.bitbucketToken)) {
+      refreshServerStatus();
     }
     if (area === 'session' && changes.pageContexts) {
       tryAutoFillFromTab();

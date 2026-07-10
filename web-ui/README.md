@@ -31,13 +31,19 @@ python3 web-ui/server.py 3000
 5. （可选）展开高级选项设置过滤条件、最大文件数、版本加载数量
 6. 点击「执行」按钮，或按 `Ctrl+Enter`
 
-页头会显示 `GITHUB_TOKEN` 是否已配置，便于排查私有仓库访问问题。
+页头会显示你是否已配置个人 Token。公有仓库无需 Token；私有仓库请在「访问令牌」区域填写并保存。
+
+### 访问令牌（与 Chrome 扩展一致）
+
+- Token 保存在浏览器 `localStorage`，不会存储在服务器
+- 每次 API 请求通过 `X-GitHub-Token` 等请求头发送
+- 点击 Token 字段旁的 `?` 可查看获取教程
 
 ## API 接口
 
 | 端点 | 方法 | 参数 | 说明 |
 |------|------|------|------|
-| `/api/status` | GET | — | 返回 `{ hasToken: bool }` |
+| `/api/status` | GET | — | 返回服务状态；可携带 `X-GitHub-Token` 等头 |
 | `/api/branches` | GET | `repo` | 获取远程分支列表 |
 | `/api/commits` | GET | `repo`, `branch`, `limit`（可选，默认 30） | 获取分支最近版本 |
 | `/api/versions` | GET | 同上 | 与 `/api/commits` 等价 |
@@ -99,6 +105,9 @@ python3 web-ui/server.py 3000
   - 点击历史项可恢复配置
 
 - **其他**
+  - 用户自带 Token（BYOT），支持 GitHub / GitLab / Bitbucket
+  - Token 获取教程（`?` 帮助弹窗）
+  - SSH / HTTPS 仓库地址自动归一化
   - Token 状态指示
   - 仓库 URL 格式校验
   - 快捷键：`Ctrl+Enter` 执行，`Esc` 关闭 loading
@@ -112,20 +121,29 @@ python3 web-ui/server.py 3000
 
 ## 环境变量（可选）
 
-如果需要访问私有仓库，请设置 GitHub Token：
+服务端**无需**配置 Token 即可对外提供服务（公有仓库）。如需作为管理员兜底，可设置：
 
 ```bash
-export GITHUB_TOKEN=your_token_here
+export GITHUB_TOKEN=your_token_here   # 可选，用户请求头优先
+export GITLAB_TOKEN=your_token_here   # 可选
+export BITBUCKET_TOKEN=your_token_here  # 可选
 python3 web-ui/server.py
 ```
+
+私有仓库推荐由用户在页面或 Chrome 扩展中填写个人 Token。
 
 ## 文件结构
 
 ```
 web-ui/
-├── server.py      # Python HTTP 后端服务
-├── index.html     # 前端界面
-└── README.md      # 说明文档
+├── server.py          # Python HTTP 后端服务
+├── index.html         # 前端界面
+├── styles.css         # 前端样式
+├── app.js             # 前端逻辑
+├── lib/
+│   ├── api.js         # API 客户端（localStorage + 请求头 Token）
+│   └── token-help.js  # Token 获取教程
+└── README.md          # 说明文档
 ```
 
 ## 使用说明

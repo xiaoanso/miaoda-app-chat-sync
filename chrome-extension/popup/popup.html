@@ -17,7 +17,7 @@
         </header>
 
         <div class="offline-banner" id="offlineBanner">
-            后端未连接。请先运行：<code>python3 web-ui/server.py</code>
+            后端未连接。请确认远程服务已启动，或在设置中检查后端地址。
         </div>
 
         <div class="main-tabs">
@@ -149,12 +149,37 @@
         <div class="main-view" id="view-settings">
             <div class="panel">
                 <div class="panel-body">
-                    <p class="settings-desc">扩展作为前端客户端，连接你本地启动的 Python 后端服务。</p>
+                    <p class="settings-desc">连接公共后端服务。公有仓库无需 Token；访问私有仓库请在下方填写你自己的 Token（仅存于本机）。</p>
+
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label for="settingsGithubToken">GitHub Token（私有仓库）</label>
+                            <button type="button" class="help-btn" data-token-help="github" title="如何获取 GitHub Token" aria-label="如何获取 GitHub Token">?</button>
+                        </div>
+                        <input type="password" id="settingsGithubToken" placeholder="ghp_..." autocomplete="off">
+                        <div class="field-hint">仅需 <code>repo</code> 读权限，Token 保存在本机</div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label for="settingsGitlabToken">GitLab Token（可选）</label>
+                            <button type="button" class="help-btn" data-token-help="gitlab" title="如何获取 GitLab Token" aria-label="如何获取 GitLab Token">?</button>
+                        </div>
+                        <input type="password" id="settingsGitlabToken" placeholder="glpat-..." autocomplete="off">
+                    </div>
+
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label for="settingsBitbucketToken">Bitbucket Token（可选）</label>
+                            <button type="button" class="help-btn" data-token-help="bitbucket" title="如何获取 Bitbucket App Password" aria-label="如何获取 Bitbucket App Password">?</button>
+                        </div>
+                        <input type="password" id="settingsBitbucketToken" placeholder="App Password" autocomplete="off">
+                    </div>
 
                     <div class="form-group">
                         <label for="settingsServerUrl">后端服务地址</label>
                         <input type="url" id="settingsServerUrl" placeholder="http://localhost:8080" autocomplete="off">
-                        <div class="field-hint">须与 <code>python3 web-ui/server.py [port]</code> 启动地址一致</div>
+                        <div class="field-hint">本地如 <code>http://localhost:8080</code>；Codespaces 如 <code>https://xxxx-8080.app.github.dev</code>（域名随实例变化，请在端口面板复制）</div>
                     </div>
 
                     <div class="form-group">
@@ -179,11 +204,22 @@
 
                     <div class="settings-status" id="settingsStatus"></div>
 
+                    <div class="token-help-overlay" id="tokenHelpOverlay" hidden>
+                        <div class="token-help-panel" role="dialog" aria-modal="true" aria-labelledby="tokenHelpTitle">
+                            <div class="token-help-header">
+                                <h3 id="tokenHelpTitle"></h3>
+                                <button type="button" class="token-help-close" id="tokenHelpClose" aria-label="关闭">×</button>
+                            </div>
+                            <div id="tokenHelpBody"></div>
+                            <a class="token-help-link" id="tokenHelpLink" href="#" target="_blank" rel="noopener noreferrer"></a>
+                        </div>
+                    </div>
+
                     <div class="settings-hint">
                         <p class="settings-hint-title">快速开始</p>
                         <ol>
-                            <li>运行 <code>python3 web-ui/server.py</code></li>
-                            <li>保存后端地址并测试连接</li>
+                            <li>填写后端地址（或使用默认公共实例）</li>
+                            <li>访问私有仓库时填写你的 GitHub Token 并保存</li>
                             <li>在 Git 仓库页打开弹窗，配置后执行</li>
                         </ol>
                     </div>

@@ -34,6 +34,124 @@
             margin-bottom: 16px;
         }
         label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--accent); }
+        .label-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .label-row label { margin-bottom: 0; }
+        .help-btn {
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            background: var(--bg2);
+            color: var(--accent);
+            font-size: 0.7rem;
+            font-weight: 700;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .help-btn:hover {
+            border-color: var(--accent);
+            background: rgba(122, 162, 247, 0.15);
+        }
+        .token-help-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.55);
+        }
+        .token-help-overlay[hidden] { display: none !important; }
+        .token-help-panel {
+            width: 100%;
+            max-width: 480px;
+            max-height: 85vh;
+            overflow-y: auto;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .token-help-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .token-help-header h3 {
+            font-size: 1rem;
+            color: var(--heading);
+            line-height: 1.4;
+        }
+        .token-help-close {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 8px;
+            background: var(--bg2);
+            color: var(--text);
+            font-size: 1.1rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .token-help-close:hover { background: var(--border); }
+        .help-steps {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 14px;
+        }
+        .help-steps li {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        .help-step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(122, 162, 247, 0.2);
+            color: var(--accent);
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .help-note {
+            font-size: 0.8rem;
+            color: #ff9e64;
+            line-height: 1.5;
+            margin-bottom: 14px;
+        }
+        .token-help-link {
+            display: inline-block;
+            font-size: 0.85rem;
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .token-help-link:hover { text-decoration: underline; }
+        .token-help-link:hover { text-decoration: underline; }
+        .help-steps code,
+        .help-note code {
+            background: var(--bg2);
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
         input, select {
             width: 100%;
             padding: 10px 12px;
@@ -66,12 +184,31 @@
 <body>
     <div class="wrap">
         <h1>⚙️ Repo JSON Generator 设置</h1>
-        <p class="desc">扩展作为前端客户端，连接你本地启动的 Python 后端服务。</p>
+        <p class="desc">连接公共后端服务。公有仓库无需 Token；访问私有仓库请填写你自己的 Token（仅存于本机）。</p>
 
         <div class="card">
+            <div class="label-row">
+                <label for="githubToken">GitHub Token（私有仓库）</label>
+                <button type="button" class="help-btn" data-token-help="github" title="如何获取 GitHub Token" aria-label="如何获取 GitHub Token">?</button>
+            </div>
+            <input type="password" id="githubToken" placeholder="ghp_..." autocomplete="off">
+            <p class="hint">仅需 <code>repo</code> 读权限，Token 保存在本机，不会上传到扩展同步</p>
+
+            <div class="label-row">
+                <label for="gitlabToken">GitLab Token（可选）</label>
+                <button type="button" class="help-btn" data-token-help="gitlab" title="如何获取 GitLab Token" aria-label="如何获取 GitLab Token">?</button>
+            </div>
+            <input type="password" id="gitlabToken" placeholder="glpat-..." autocomplete="off">
+
+            <div class="label-row">
+                <label for="bitbucketToken">Bitbucket Token（可选）</label>
+                <button type="button" class="help-btn" data-token-help="bitbucket" title="如何获取 Bitbucket App Password" aria-label="如何获取 Bitbucket App Password">?</button>
+            </div>
+            <input type="password" id="bitbucketToken" placeholder="App Password" autocomplete="off">
+
             <label for="serverUrl">后端服务地址</label>
             <input type="url" id="serverUrl" placeholder="http://localhost:8080">
-            <p class="hint">须与 <code>python3 web-ui/server.py [port]</code> 启动的地址一致</p>
+            <p class="hint">本地如 <code>http://localhost:8080</code>；Codespaces 如 <code>https://xxxx-8080.app.github.dev</code>（域名随实例变化，请在端口面板复制）</p>
 
             <label for="defaultCommand">默认命令</label>
             <select id="defaultCommand">
@@ -88,10 +225,21 @@
             <div class="status" id="statusMsg"></div>
         </div>
 
+        <div class="token-help-overlay" id="tokenHelpOverlay" hidden>
+            <div class="token-help-panel" role="dialog" aria-modal="true" aria-labelledby="tokenHelpTitle">
+                <div class="token-help-header">
+                    <h3 id="tokenHelpTitle"></h3>
+                    <button type="button" class="token-help-close" id="tokenHelpClose" aria-label="关闭">×</button>
+                </div>
+                <div id="tokenHelpBody"></div>
+                <a class="token-help-link" id="tokenHelpLink" href="#" target="_blank" rel="noopener noreferrer"></a>
+            </div>
+        </div>
+
         <div class="card">
             <h2 style="font-size:1rem;color:var(--heading);margin-bottom:12px;">快速开始</h2>
             <ol style="padding-left:20px;font-size:0.85rem;line-height:1.8;">
-                <li>在项目根目录运行：<code>python3 web-ui/server.py</code></li>
+                <li>确认远程后端服务在线（或本地运行 <code>python3 web-ui/server.py</code>）</li>
                 <li>加载本扩展到 Chrome</li>
                 <li>浏览 GitHub/GitLab 页面，点击扩展图标打开弹窗</li>
                 <li>配置参数后执行，复制或下载 JSON 文件</li>

@@ -10,6 +10,7 @@ Usage:
 """
 
 import json
+import mimetypes
 import os
 import sys
 import time
@@ -35,7 +36,7 @@ class GeneratorHandler(BaseHTTPRequestHandler):
             self.send_response(204)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-GitHub-Token, X-GitLab-Token, X-Bitbucket-Token')
             self.end_headers()
         else:
             self.send_error(404)
@@ -45,19 +46,31 @@ class GeneratorHandler(BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
 
         if parsed_path.path == '/' or parsed_path.path == '/index.html':
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
+            self._serve_static_file('index.html', 'text/html; charset=utf-8')
 
-            html_path = os.path.join(os.path.dirname(__file__), 'index.html')
-            with open(html_path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-            self.wfile.write(html_content.encode('utf-8'))
+        elif parsed_path.path in ('/app.js', '/styles.css') or parsed_path.path.startswith('/lib/'):
+            rel_path = parsed_path.path.lstrip('/')
+            self._serve_static_file(rel_path)
 
         elif parsed_path.path == '/api/status':
+            client_tokens = self._client_tokens_from_headers()
+            server_tokens = {
+                'github': bool(os.environ.get('GITHUB_TOKEN')),
+                'gitlab': bool(os.environ.get('GITLAB_TOKEN')),
+                'bitbucket': bool(os.environ.get('BITBUCKET_TOKEN')),
+            }
             self._send_json_response(200, {
                 'success': True,
-                'hasToken': bool(os.environ.get('GITHUB_TOKEN')),
+                'hasToken': any(client_tokens.values()) or any(server_tokens.values()),
+                'publicMode': not any(server_tokens.values()),
+                'serverTokens': server_tokens,
+                'clientTokens': client_tokens,
+                # Backward compatibility for older clients
+                'tokens': {
+                    'github': client_tokens['github'] or server_tokens['github'],
+                    'gitlab': client_tokens['gitlab'] or server_tokens['gitlab'],
+                    'bitbucket': client_tokens['bitbucket'] or server_tokens['bitbucket'],
+                },
             })
 
         elif parsed_path.path == '/api/branches':
@@ -245,10 +258,45 @@ class GeneratorHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
 
+    def _serve_static_file(self, rel_path: str, content_type: str = None):
+        """Serve a file from the web-ui directory (no path traversal)."""
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.normpath(os.path.join(base_dir, rel_path))
+        if not file_path.startswith(base_dir) or not os.path.isfile(file_path):
+            self.send_error(404, f'Not found: /{rel_path}')
+            return
+
+        if content_type is None:
+            guessed, _ = mimetypes.guess_type(file_path)
+            content_type = guessed or 'application/octet-stream'
+            if content_type == 'text/javascript':
+                content_type = 'application/javascript; charset=utf-8'
+
+        with open(file_path, 'rb') as f:
+            data = f.read()
+
+        self.send_response(200)
+        self.send_header('Content-type', content_type)
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _client_tokens_from_headers(self) -> dict:
+        """Report whether the client sent platform tokens (values are never echoed)."""
+        return {
+            'github': bool(self.headers.get('X-GitHub-Token')),
+            'gitlab': bool(self.headers.get('X-GitLab-Token')),
+            'bitbucket': bool(self.headers.get('X-Bitbucket-Token')),
+        }
+
     def _get_generator(self):
-        """Create a repository generator with optional GitHub token."""
-        token = os.environ.get('GITHUB_TOKEN')
-        return RepoJSONGenerator(token=token, verbose=False)
+        """Create a generator using per-request client tokens, with server env fallback."""
+        return RepoJSONGenerator(
+            token=self.headers.get('X-GitHub-Token') or None,
+            gitlab_token=self.headers.get('X-GitLab-Token') or None,
+            bitbucket_token=self.headers.get('X-Bitbucket-Token') or None,
+            verbose=False,
+        )
 
     def log_message(self, format, *args):
         """Custom log format"""
@@ -265,6 +313,9 @@ def run_server(port=8080):
     print(f"  Server running at:")
     print(f"    → Local: http://localhost:{port}")
     print(f"    → Network: http://0.0.0.0:{port}")
+    print()
+    print(f"  Public mode: no server-side tokens required")
+    print(f"  Users provide their own tokens via X-GitHub-Token headers")
     print()
     print(f"  Press Ctrl+C to stop")
     print("=" * 60)
