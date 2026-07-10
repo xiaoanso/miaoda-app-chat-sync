@@ -48,7 +48,10 @@ class GeneratorHandler(BaseHTTPRequestHandler):
         if parsed_path.path == '/' or parsed_path.path == '/index.html':
             self._serve_static_file('index.html', 'text/html; charset=utf-8')
 
-        elif parsed_path.path in ('/app.js', '/styles.css') or parsed_path.path.startswith('/lib/'):
+        elif parsed_path.path == '/favicon.ico':
+            self._serve_static_file('favicon.png', 'image/png')
+
+        elif parsed_path.path in ('/app.js', '/styles.css', '/favicon.png') or parsed_path.path.startswith('/lib/'):
             rel_path = parsed_path.path.lstrip('/')
             self._serve_static_file(rel_path)
 
@@ -271,6 +274,8 @@ class GeneratorHandler(BaseHTTPRequestHandler):
             content_type = guessed or 'application/octet-stream'
             if content_type == 'text/javascript':
                 content_type = 'application/javascript; charset=utf-8'
+            elif content_type == 'image/png':
+                content_type = 'image/png'
 
         with open(file_path, 'rb') as f:
             data = f.read()
@@ -278,6 +283,8 @@ class GeneratorHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', content_type)
         self.send_header('Content-Length', str(len(data)))
+        if rel_path in ('favicon.png',) or rel_path.endswith('.png'):
+            self.send_header('Cache-Control', 'public, max-age=86400')
         self.end_headers()
         self.wfile.write(data)
 
