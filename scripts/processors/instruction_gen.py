@@ -203,6 +203,37 @@ class InstructionGenerator:
         return '\n'.join(output_parts)
 
     @staticmethod
+    def _build_output_filename(output_file: str) -> str:
+        """
+        Build output filename with date prefix.
+        
+        Format: {directory}/{datetime}_{original_filename}
+        Example: json/20160716105120_8caf2f9bde692474c136671ce11fc321b588ef79.json
+        
+        Args:
+            output_file: Original output path provided by user
+            
+        Returns:
+            Constructed filename with date prefix
+        """
+        if not output_file:
+            return output_file
+        
+        # 生成日期前缀 (年月日时时分秒)
+        datetime_str = datetime.now().strftime('%Y%m%d%H%M%S')
+        
+        # 分离目录和文件名
+        dir_part = ''
+        filename_part = output_file
+        if '/' in output_file:
+            dir_part, filename_part = output_file.rsplit('/', 1)
+        
+        # 在文件名前面加上日期前缀，保留目录部分
+        if dir_part:
+            return f"{dir_part}/{datetime_str}_{filename_part}"
+        return f"{datetime_str}_{filename_part}"
+
+    @staticmethod
     def output_result(result: Dict, output_file: str = None, no_instructions: bool = False):
         """
         Output result to terminal and/or file
@@ -212,6 +243,9 @@ class InstructionGenerator:
             output_file: Optional file path to save output
             no_instructions: If True, save pure JSON only (for file output)
         """
+        # 构建带日期前缀的输出文件名
+        output_file = InstructionGenerator._build_output_filename(output_file)
+        
         if output_file:
             # Save to file
             if no_instructions:
