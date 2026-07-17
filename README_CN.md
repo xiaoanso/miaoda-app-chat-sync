@@ -131,7 +131,7 @@ python3 scripts/generator.py versions \
 | --------------------- | --------------------------- | ---------- |
 | `--filter`          | 仅包含匹配模式的文件        | 所有文件   |
 | `--exclude`         | 排除匹配模式的文件          | 无         |
-| `--max-files`       | 最大处理文件数              | 50         |
+| `--max-files`       | 最大处理文件数              | 500        |
 | `--output`          | 保存输出到文件              | 仅终端显示 |
 | `--no-instructions` | 输出纯 JSON（无格式化说明） | 显示说明   |
 
@@ -247,7 +247,7 @@ python3 scripts/generator.py info \
 | `--commit`          | 指定 commit hash                         | 最新 commit |
 | `--filter`          | 仅包含匹配模式的文件（如 "*.py,*.js"） | 所有文件    |
 | `--exclude`         | 排除匹配模式的文件（如 "*.md,test/*"） | 无          |
-| `--max-files`       | 最大处理文件数                           | `50`      |
+| `--max-files`       | 最大处理文件数                           | `500`     |
 | `--output`          | 保存输出到文件                           | 仅终端显示  |
 | `--no-instructions` | 输出纯 JSON（无格式化说明）              | 格式化输出  |
 | `--verbose`         | 启用详细日志                             | 禁用        |
@@ -325,10 +325,10 @@ python3 scripts/generator.py full \
 
 无需完整 clone，列出远程分支。
 
-| 参数 | 必需 | 说明 |
-|------|------|------|
-| `--repo` | ✅ | Git 仓库 URL |
-| `--output` | ❌ | 保存 JSON 到文件 |
+| 参数         | 必需 | 说明             |
+| ------------ | ---- | ---------------- |
+| `--repo`   | ✅   | Git 仓库 URL     |
+| `--output` | ❌   | 保存 JSON 到文件 |
 
 ```bash
 python3 scripts/generator.py branches --repo https://github.com/user/repo
@@ -338,12 +338,12 @@ python3 scripts/generator.py branches --repo https://github.com/user/repo
 
 获取指定分支最近的 commit 版本列表。
 
-| 参数 | 必需 | 说明 | 默认值 |
-|------|------|------|--------|
-| `--repo` | ✅ | Git 仓库 URL | — |
-| `--branch` | ✅ | 分支名称 | — |
-| `--limit` | ❌ | 最近版本数量（1–100） | 30 |
-| `--output` | ❌ | 保存 JSON 到文件 | — |
+| 参数         | 必需 | 说明                   | 默认值 |
+| ------------ | ---- | ---------------------- | ------ |
+| `--repo`   | ✅   | Git 仓库 URL           | —     |
+| `--branch` | ✅   | 分支名称               | —     |
+| `--limit`  | ❌   | 最近版本数量（1–100） | 30     |
+| `--output` | ❌   | 保存 JSON 到文件       | —     |
 
 ```bash
 python3 scripts/generator.py versions \
